@@ -163,7 +163,7 @@ Now build the skeleton.
 A clean layout might look like:
 
 ```text
-extreme-src/
+br41ndmg/
 ├── src/
 │   ├── lib.rs
 │   ├── sinc.rs

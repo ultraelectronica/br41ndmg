@@ -1,15 +1,74 @@
 # br41ndmg
 
-A high-performance audio resampling library written in Rust.
+A high-performance audio resampling library written in Rust, implementing polyphase sinc resampling for high-fidelity sample-rate conversion.
 
 ## Overview
 
-[Overview content]
+br41ndmg provides production-quality sample-rate conversion for audio applications. It uses windowed sinc interpolation with polyphase filter decomposition for efficient arbitrary-ratio resampling while maintaining excellent frequency response characteristics.
+
+### Key Features
+
+- **High-quality resampling**: Windowed sinc-based FIR filtering
+- **Arbitrary ratios**: Convert between any sample rates (e.g., 44.1kHz → 48kHz)
+- **Configurable filters**: Multiple window functions (Hann, Hamming, Blackman, Kaiser)
+- **Benchmarked**: Comprehensive performance testing with criterion
+- **Testable**: DSP-validated with impulse, sine, and sweep tests
 
 ## Quick Start
 
-[Quick start content]
+### Installation
+
+```toml
+[dependencies]
+br41ndmg = "0.1"
+```
+
+### Basic Usage
+
+```rust
+use br41ndmg::Resampler;
+
+let input_rate = 44100.0;
+let output_rate = 48000.0;
+let mut resampler = Resampler::new(input_rate, output_rate, 64, 16)?;
+
+let input_samples: Vec<f64> = /* your audio data */;
+let output_samples = resampler.process(&input_samples);
+```
+
+### Examples
+
+```bash
+cargo run --example file_resample
+cargo run --example tone_resample
+```
 
 ## Roadmap
 
-[Roadmap content]
+- [x] Core math primitives (sinc, windows, FIR kernels)
+- [x] Naive resampler prototype
+- [x] Polyphase sinc implementation
+- [ ] File I/O integration
+- [ ] Real-time streaming support
+- [ ] SIMD optimization
+- [ ] f32 support
+
+## Documentation
+
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) - Project requirements and scope
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design and data flow
+- [docs/DSP_NOTES.md](docs/DSP_NOTES.md) - DSP theory and algorithms
+- [docs/TEST_PLAN.md](docs/TEST_PLAN.md) - Testing strategy
+- [docs/BENCHMARK_PLAN.md](docs/BENCHMARK_PLAN.md) - Performance benchmarks
+
+## Quality Targets
+
+| Metric | Target |
+|--------|--------|
+| Aliasing suppression | < -100 dB |
+| Passband ripple | < 0.1 dB |
+| Stopband attenuation | > 100 dB |
+
+## License
+
+MIT
