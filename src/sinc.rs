@@ -1,3 +1,4 @@
+use crate::utils::validate_cutoff;
 use std::f64::consts::PI;
 
 const SMALL_T: f64 = 1.0e-4;
@@ -24,10 +25,7 @@ pub fn sinc_kernel(length: usize, cutoff: f64) -> Vec<f64> {
         return Vec::new();
     }
 
-    assert!(
-        cutoff.is_finite() && cutoff > 0.0 && cutoff <= 0.5,
-        "cutoff must be in (0, 0.5]"
-    );
+    validate_cutoff(cutoff);
 
     if length == 1 {
         // One-tap FIR is identity.
