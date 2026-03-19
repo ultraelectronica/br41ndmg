@@ -81,3 +81,16 @@ fn windowed_sinc(length: usize, cutoff: f64, window: Window) -> Vec<f64> {
 
     taps
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_kernel_scales_sum_to_one() {
+        let mut taps = vec![1.0, 1.0, 2.0];
+        normalize_kernel(&mut taps);
+        let sum: f64 = taps.iter().sum();
+        assert!((sum - 1.0).abs() <= 1e-9);
+    }
+}
