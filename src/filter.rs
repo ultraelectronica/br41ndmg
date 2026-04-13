@@ -1,6 +1,6 @@
 use crate::sinc::normalized_sinc;
 use crate::utils::validate_cutoff;
-use crate::window::{apply_window, Window};
+use crate::window::{Window, apply_window};
 
 #[derive(Debug, Clone)]
 pub struct FirKernel {
