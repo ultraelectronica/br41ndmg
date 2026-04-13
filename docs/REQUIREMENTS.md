@@ -8,7 +8,7 @@ Build a production-quality polyphase sinc resampler in Rust that converts PCM au
 
 - **Audio types**: Mono and stereo PCM
 - **Sample formats**: `f64` (primary), `f32` (future)
-- **Input/Output**: Offline file processing first, real-time streaming later
+- **Input/Output**: Offline file processing and real-time streaming
 - **Resampling ratios**: Arbitrary rational and non-rational sample-rate ratios
 
 ## Quality Targets
@@ -36,7 +36,7 @@ Build a production-quality polyphase sinc resampler in Rust that converts PCM au
 - Arbitrary sample-rate conversion (e.g., 44.1kHz → 48kHz)
 - Windowed FIR filter design (Hann, Hamming, Blackman, Kaiser)
 - Offline batch processing
-- Real-time streaming support (future)
+- Real-time streaming support
 - Comprehensive test suite (impulse, sine, sweep)
 - Performance benchmarks
 

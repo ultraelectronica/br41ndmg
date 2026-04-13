@@ -12,8 +12,9 @@ br41ndmg/
 │   ├── sinc.rs             # Core sinc function, safe x=0 branch
 │   ├── window.rs           # Hann, Blackman, Kaiser windowing
 │   ├── filter.rs           # FIR kernel generation and normalization
+│   ├── io.rs               # WAV read/write and AudioBuffer helpers
 │   ├── polyphase.rs        # FilterBank, phase table
-│   ├── resampler.rs        # ResamplerConfig, process()
+│   ├── resampler.rs        # Offline and streaming resamplers
 │   ├── error.rs            # Error enum with thiserror
 │   └── utils.rs            # GCD, rational ratio helpers
 │
@@ -28,7 +29,7 @@ br41ndmg/
 │
 ├── examples/
 │   ├── resample_file.rs    # WAV in → WAV out via hound
-│   └── tone_resample.rs    # Synthetic sine, no file I/O
+│   └── tone_resample.rs    # Synthetic sine written as WAV output
 │
 └── docs/
     ├── ARCHITECTURE.md     # Module map, data flow

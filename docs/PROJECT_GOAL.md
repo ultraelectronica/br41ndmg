@@ -179,7 +179,7 @@ br41ndmg/
 ├── benches/
 │   └── resampler_bench.rs
 ├── examples/
-│   ├── file_resample.rs
+│   ├── resample_file.rs
 │   └── tone_resample.rs
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -298,7 +298,7 @@ It gives you:
 ## Deliverables
 
 * `Resampler` struct
-* `process(&[f64]) -> Vec<f64>`
+* `resample(&[f32]) -> Result<Vec<f32>, ResampleError>`
 * basic example program
 * a tiny test tone conversion example
 
