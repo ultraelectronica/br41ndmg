@@ -1,4 +1,4 @@
-use br41ndmg::filter::{fir_kernel, FirKernel};
+use br41ndmg::filter::{FirKernel, fir_kernel};
 use br41ndmg::window::Window;
 
 const EPS: f64 = 1.0e-9;
