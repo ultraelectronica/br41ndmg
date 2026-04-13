@@ -64,7 +64,7 @@ The `polyphase.rs` module will contain:
 
 **Offline (current)**: Processes entire input buffer, returns complete output. `io.rs` handles WAV decode to normalized interleaved `AudioBuffer`, channel-wise resampling, and 32-bit float WAV output.
 
-**Real-time (future)**: Ring buffer with lookahead. Latency determined by filter length. No allocations in callback.
+**Real-time (current)**: `StreamingResampler` keeps one input frame of history per channel plus a fractional read position. The caller provides reusable output buffers via `process_into()` and finishes the stream with `flush_into()`.
 
 ## Design Decisions
 

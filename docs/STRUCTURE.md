@@ -14,7 +14,7 @@ br41ndmg/
 │   ├── filter.rs           # FIR kernel generation and normalization
 │   ├── io.rs               # WAV read/write and AudioBuffer helpers
 │   ├── polyphase.rs        # FilterBank, phase table
-│   ├── resampler.rs        # Resampler construction and resample()
+│   ├── resampler.rs        # Offline and streaming resamplers
 │   ├── error.rs            # Error enum with thiserror
 │   └── utils.rs            # GCD, rational ratio helpers
 │

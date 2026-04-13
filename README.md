@@ -46,6 +46,20 @@ let output = input.resample_to(48_000)?;
 write_wav("output.wav", &output)?;
 ```
 
+### Real-time Streaming
+
+```rust
+use br41ndmg::StreamingResampler;
+
+let mut stream = StreamingResampler::new(44_100.0, 48_000.0, 2)?;
+let input_frames = 256;
+let input_chunk = vec![0.0f32; input_frames * 2];
+let mut output = vec![0.0; stream.output_samples_for(input_frames)];
+
+let written_frames = stream.process_into(&input_chunk, &mut output)?;
+let ready = &output[..written_frames * stream.channels()];
+```
+
 ### Examples
 
 ```bash
@@ -59,7 +73,7 @@ cargo run --example tone_resample -- tone_resampled.wav
 - [x] Naive resampler prototype
 - [x] Polyphase sinc implementation
 - [x] File I/O integration (WAV)
-- [ ] Real-time streaming support
+- [x] Real-time streaming support
 - [ ] SIMD optimization
 - [ ] f32 support
 
