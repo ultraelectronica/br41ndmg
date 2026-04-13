@@ -30,17 +30,27 @@ use br41ndmg::Resampler;
 
 let input_rate = 44100.0;
 let output_rate = 48000.0;
-let mut resampler = Resampler::new(input_rate, output_rate, 64, 16)?;
+let resampler = Resampler::new(input_rate, output_rate)?;
 
-let input_samples: Vec<f64> = /* your audio data */;
-let output_samples = resampler.process(&input_samples);
+let input_samples: Vec<f32> = /* your audio data */;
+let output_samples = resampler.resample(&input_samples)?;
+```
+
+### WAV File I/O
+
+```rust
+use br41ndmg::io::{read_wav, write_wav};
+
+let input = read_wav("input.wav")?;
+let output = input.resample_to(48_000)?;
+write_wav("output.wav", &output)?;
 ```
 
 ### Examples
 
 ```bash
-cargo run --example file_resample
-cargo run --example tone_resample
+cargo run --example resample_file -- input.wav output.wav 48000
+cargo run --example tone_resample -- tone_resampled.wav
 ```
 
 ## Roadmap
@@ -48,7 +58,7 @@ cargo run --example tone_resample
 - [x] Core math primitives (sinc, windows, FIR kernels)
 - [x] Naive resampler prototype
 - [x] Polyphase sinc implementation
-- [ ] File I/O integration
+- [x] File I/O integration (WAV)
 - [ ] Real-time streaming support
 - [ ] SIMD optimization
 - [ ] f32 support
@@ -60,6 +70,11 @@ cargo run --example tone_resample
 - [docs/DSP_NOTES.md](docs/DSP_NOTES.md) - DSP theory and algorithms
 - [docs/TEST_PLAN.md](docs/TEST_PLAN.md) - Testing strategy
 - [docs/BENCHMARK_PLAN.md](docs/BENCHMARK_PLAN.md) - Performance benchmarks
+
+## Supported WAV Formats
+
+- Input: 8/16/24/32-bit PCM WAV and 32-bit float WAV
+- Output: 32-bit float WAV
 
 ## Quality Targets
 
