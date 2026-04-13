@@ -6,6 +6,12 @@ pub enum ResampleError {
     InvalidSampleRate(f64),
     #[error("Invalid ratio")]
     InvalidRatio,
+    #[error("Invalid channel count: {0}")]
+    InvalidChannelCount(usize),
     #[error("Buffer error: {0}")]
     BufferError(String),
+    #[error("Unsupported WAV format: {0}")]
+    UnsupportedWavFormat(String),
+    #[error("WAV error: {0}")]
+    Wav(#[from] hound::Error),
 }
