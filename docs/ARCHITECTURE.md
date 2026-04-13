@@ -8,6 +8,7 @@
 | `sinc.rs` | Sinc function and normalized sinc kernel |
 | `window.rs` | Window functions (Hann, Hamming, Blackman, Kaiser) |
 | `filter.rs` | FIR kernel generation and normalization |
+| `io.rs` | Offline WAV decoding, encoding, and audio buffers |
 | `polyphase.rs` | FilterBank and phase table management |
 | `resampler.rs` | Main Resampler struct and processing pipeline |
 | `error.rs` | Error types (InvalidSampleRate, InvalidRatio) |
@@ -61,7 +62,7 @@ The `polyphase.rs` module will contain:
 
 ## Offline vs Real-time
 
-**Offline (current)**: Processes entire input buffer, returns complete output. Suitable for file conversion.
+**Offline (current)**: Processes entire input buffer, returns complete output. `io.rs` handles WAV decode to normalized interleaved `AudioBuffer`, channel-wise resampling, and 32-bit float WAV output.
 
 **Real-time (future)**: Ring buffer with lookahead. Latency determined by filter length. No allocations in callback.
 
