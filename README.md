@@ -1,12 +1,10 @@
 # br41ndmg
 
-A Rust audio resampling library with offline WAV I/O, streaming support, and a stereo SIMD fast path for the current linear-interpolation engine.
+A Rust audio resampling library with a polyphase sinc engine, offline WAV I/O, streaming support, and a stereo SSE2 fast path.
 
 ## Overview
 
-`br41ndmg` currently resamples `f32` audio with linear interpolation. The library exposes both offline and streaming APIs, reads and writes WAV files, and keeps the hot stereo interleaved path allocation-free aside from the returned output buffer.
-
-The longer-term goal is still a polyphase sinc resampler, but that filterbank is not implemented yet.
+`br41ndmg` currently resamples `f32` audio with a precomputed polyphase sinc filter bank. The library exposes both offline and streaming APIs, reads and writes WAV files, and uses the same filter math in chunked and full-buffer processing.
 
 ## Current Features
 
@@ -14,9 +12,11 @@ The longer-term goal is still a polyphase sinc resampler, but that filterbank is
 - `f32` and `f64` DSP helper APIs for sinc, window, and FIR kernel generation
 - Offline resampling for mono and interleaved multichannel buffers
 - Streaming resampling for interleaved audio
+- Polyphase sinc filtering with precomputed fractional phases
 - WAV input: 8/16/24/32-bit PCM and 32-bit float
 - WAV output: 32-bit float
 - SSE2 stereo fast path on `x86` and `x86_64`
+- DSP validation tests for impulse, sine, sweep, DC, and alias-suppression regressions
 - Criterion benchmarks for mono and stereo 44.1 kHz -> 48 kHz conversion
 
 ## Quick Start
@@ -68,13 +68,14 @@ let ready = &output[..written_frames * stream.channels()];
 ## Roadmap
 
 - [x] Core math primitives (sinc, windows, FIR kernels)
-- [x] Naive linear resampler prototype
+- [x] Polyphase sinc implementation
 - [x] File I/O integration (WAV)
 - [x] Real-time streaming support
 - [x] SIMD optimization for stereo interleaved paths
 - [x] `f32` DSP helper support
-- [ ] Polyphase sinc implementation
-- [ ] DSP quality validation suite expansion
+- [x] DSP quality validation suite expansion
+- [ ] Configurable polyphase filter parameters
+- [ ] Expanded performance baselines and profiling data
 
 ## Documentation
 
@@ -87,7 +88,7 @@ let ready = &output[..written_frames * stream.channels()];
 
 ## Long-Term Targets
 
-These are project goals for the future polyphase implementation, not current guarantees.
+These are project goals, not hard guarantees from the current default filter settings.
 
 | Metric | Target |
 |--------|--------|
