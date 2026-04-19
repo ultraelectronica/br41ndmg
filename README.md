@@ -13,6 +13,7 @@ A Rust audio resampling library with a polyphase sinc engine, offline WAV I/O, s
 - Offline resampling for mono and interleaved multichannel buffers
 - Streaming resampling for interleaved audio
 - Polyphase sinc filtering with precomputed fractional phases
+- Configurable polyphase filter phase count, tap count, and window
 - WAV input: 8/16/24/32-bit PCM and 32-bit float
 - WAV output: 32-bit float
 - SSE2 stereo fast path on `x86` and `x86_64`
@@ -39,6 +40,19 @@ let resampler = Resampler::new(input_rate, output_rate)?;
 
 let input_samples: Vec<f32> = /* your audio data */;
 let output_samples = resampler.resample(&input_samples)?;
+```
+
+### Custom Filter Settings
+
+```rust
+use br41ndmg::{PolyphaseFilterParams, Resampler, Window};
+
+let params = PolyphaseFilterParams {
+    phases: 512,
+    taps_per_phase: 95,
+    window: Window::Blackman,
+};
+let resampler = Resampler::with_filter_params(44_100.0, 48_000.0, params)?;
 ```
 
 ### WAV File I/O
@@ -74,7 +88,7 @@ let ready = &output[..written_frames * stream.channels()];
 - [x] SIMD optimization for stereo interleaved paths
 - [x] `f32` DSP helper support
 - [x] DSP quality validation suite expansion
-- [ ] Configurable polyphase filter parameters
+- [x] Configurable polyphase filter parameters
 - [ ] Expanded performance baselines and profiling data
 
 ## Documentation

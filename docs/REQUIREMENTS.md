@@ -78,5 +78,4 @@ Build and validate a polyphase sinc resampler in Rust with predictable behavior 
 
 - Real-time streaming with `cpal`
 - Additional window functions
-- Configurable filter parameters
 - Expanded spectral-analysis regression tests
