@@ -2,7 +2,7 @@
 
 ## Overview
 
-Performance measurement strategy for quantifying resampler throughput, latency, and resource usage.
+Performance measurement strategy for the current linear-interpolation resampler and its stereo SIMD fast path.
 
 ## Benchmark Infrastructure
 
@@ -10,36 +10,21 @@ Performance measurement strategy for quantifying resampler throughput, latency, 
 - **Environment**: Controlled CPU, no background load
 - **Measurement**: Multiple iterations, outlier removal, confidence intervals
 
-## Metrics
+## Current Metrics
 
 | Metric | Description | Target |
 |--------|-------------|--------|
-| Throughput | Samples processed per second | > 10M samples/sec |
-| Latency | Processing time per sample | < 100 ns/sample |
-| Memory | Peak allocation per resampler | < 1 MB |
-| Scaling | Performance vs filter length | Linear |
+| Throughput | Samples processed per second | Track mono vs stereo trends |
+| Latency | Processing time per sample | Track relative changes |
+| Memory | Peak allocation per resampler | No extra hot-path channel copies |
+| SIMD benefit | Stereo speedup vs scalar fallback | Positive on supported CPUs |
 
-## Test Datasets
+## Current Benchmark Datasets
 
-### Synthetic Signals
+The checked-in benchmark generates deterministic synthetic audio in memory:
 
-For consistent, reproducible measurements:
-
-**Impulse** (1000 samples):
-- Single impulse at center
-- Tests filter application
-
-**Sine wave** (48000 samples, 1 second at 48kHz):
-- 1 kHz pure tone
-- Realistic audio length
-
-**Noise** (48000 samples):
-- White noise
-- Tests worst-case interpolation
-
-**Silence** (48000 samples):
-- All zeros
-- Tests overhead without computation
+- **Mono signal**: 44_100 frames of mixed sine and cosine content
+- **Stereo signal**: 44_100 interleaved frames with per-channel phase offsets
 
 ### Real-World Audio (Future)
 
@@ -47,51 +32,23 @@ For consistent, reproducible measurements:
 - High-resolution audio (96kHz, 1 minute)
 - Speech sample (16kHz, 30 seconds)
 
-## Benchmarks
+## Current Benchmarks
 
-### 1. Throughput Benchmarks
-
-```rust
-fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("resample_44100_to_48000", |b| {
-        let resampler = Resampler::new(44100.0, 48000.0);
-        let input = generate_sine(1000.0, 44100.0, 1.0);
-        b.iter(|| resampler.resample(&input));
-    });
-}
-```
-
-**Benchmark cases**:
-- `resample_44100_to_48000` - Common non-integer ratio
-- `resample_48000_to_44100` - Inverse ratio
-- `resample_48000_to_96000` - 2x upsample
-- `resample_96000_to_48000` - 2x downsample
-- `resample_passthrough` - 1:1 ratio
-
-### 2. Scaling Benchmarks
-
-Test performance vs algorithmic parameters:
+The current `benches/resampler_bench.rs` file covers:
 
 ```rust
-fn bench_filter_length(c: &mut Criterion) {
-    let input = generate_sine(1000.0, 48000.0, 1.0);
-    let mut group = BenchmarkGroup::new("filter_length");
-    for taps in [16, 32, 64, 128, 256] {
-        group.bench_with_input(taps, |b, &t| {
-            let resampler = Resampler::with_taps(48000.0, 96000.0, taps);
-            b.iter(|| resampler.resample(&input));
-        });
-    }
-    group.finish();
-}
+- mono `44_100 -> 48_000` via `Resampler::resample()`
+- stereo `44_100 -> 48_000` via `Resampler::resample_interleaved(..., 2)`
 ```
 
-**Vary**:
-- Filter length (taps)
-- Number of phases
-- Input buffer size
+## Next Benchmarks
 
-### 3. Memory Benchmarks
+- 48 kHz -> 44.1 kHz downsampling
+- 1:1 passthrough overhead
+- Streaming chunk sizes for mono vs stereo
+- Direct scalar-vs-SIMD comparison on supported x86 targets
+
+## Memory Checks
 
 Track allocations in hot path:
 
@@ -105,7 +62,7 @@ static ALLOC: tracy_client::AllocProfiler = tracy_client::AllocProfiler;
 - Peak memory for FilterBank
 - Stack vs heap usage
 
-### 4. Comparison (Future)
+## Comparison (Future)
 
 Compare against reference implementations:
 
@@ -122,20 +79,14 @@ Compare against reference implementations:
 
 ## Performance Targets
 
-### Minimum Targets
-- 1M samples/second sustained
-- < 1μs setup time per conversion
-- Zero allocations in `resample()` path
+### Near-Term Targets
+- No per-channel deinterleave/reinterleave work in interleaved resampling
+- Stereo SIMD path measurably faster than the scalar fallback on supported CPUs
+- Stable Criterion baselines for mono and stereo 44.1 kHz -> 48 kHz cases
 
-### Target Targets
-- 10M samples/second sustained
-- < 100ns per output sample
-- < 100KB memory per resampler
-
-### Stretch Goals
-- 50M samples/second with SIMD
-- < 50ns per output sample
-- < 10KB memory per resampler
+### Longer-Term Targets
+- Polyphase benchmarks once that implementation exists
+- Latency and quality measurements tied to the future filterbank
 
 ## Regression Testing
 
@@ -160,8 +111,11 @@ Alert on regressions:
 # Run all benchmarks
 cargo bench
 
-# Run specific benchmark
-cargo bench --bench resampler_bench resample_44100_to_48000
+# Compile benchmark without running
+cargo bench --bench resampler_bench --no-run
+
+# Run current benchmark group
+cargo bench --bench resampler_bench
 
 # Generate flamegraph
 cargo bench --bench resampler_bench -- --profile-time=5
@@ -172,7 +126,7 @@ cargo bench -- --save-baseline current
 
 ## Profiling Tools
 
-- **criterion**: Throughput and latency measurement
+- **criterion**: Throughput measurement and regression comparison
 - **perf**: Linux CPU profiling (`perf record -g`)
 - **flamegraph**: Visual call graphs
 - **tracy**: Memory allocation tracking
