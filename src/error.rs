@@ -6,6 +6,8 @@ pub enum ResampleError {
     InvalidSampleRate(f64),
     #[error("Invalid ratio")]
     InvalidRatio,
+    #[error("Invalid filter configuration: {0}")]
+    InvalidFilterConfig(String),
     #[error("Invalid channel count: {0}")]
     InvalidChannelCount(usize),
     #[error("Buffer error: {0}")]
