@@ -74,7 +74,7 @@ cargo run --example tone_resample -- tone_resampled.wav
 - [x] Polyphase sinc implementation
 - [x] File I/O integration (WAV)
 - [x] Real-time streaming support
-- [ ] SIMD optimization
+- [X] SIMD optimization
 - [ ] f32 support
 
 ## Documentation
