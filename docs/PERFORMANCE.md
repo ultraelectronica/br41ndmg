@@ -4,14 +4,14 @@
 
 No benchmark result snapshots are checked into the repository yet.
 
-The current performance work focused on removing unnecessary interleaved-buffer copies and adding a stereo SIMD fast path.
+The current performance work focuses on the polyphase sinc FIR loop, avoiding interleaved-buffer copies, and keeping a stereo SIMD fast path for the most common interleaved case.
 
 ## SIMD
 
 - Target: `Resampler::resample_interleaved(..., 2)` and stereo `StreamingResampler::process_into()`
 - ISA: SSE2 on `x86` and `x86_64`
-- Fallback: scalar interpolation on unsupported targets and for non-stereo channel counts
-- Main win: avoid the old deinterleave/resample/reinterleave flow and interpolate the two-channel frame directly
+- Fallback: scalar FIR accumulation on unsupported targets and for non-stereo channel counts
+- Main win: accumulate both stereo channels together while the scalar path handles arbitrary channel counts
 
 ## Benchmarks
 

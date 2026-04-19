@@ -2,7 +2,7 @@
 
 ## Overview
 
-Performance measurement strategy for the current linear-interpolation resampler and its stereo SIMD fast path.
+Performance measurement strategy for the current polyphase sinc resampler and its stereo SSE2 fast path.
 
 ## Benchmark Infrastructure
 
@@ -18,6 +18,7 @@ Performance measurement strategy for the current linear-interpolation resampler 
 | Latency | Processing time per sample | Track relative changes |
 | Memory | Peak allocation per resampler | No extra hot-path channel copies |
 | SIMD benefit | Stereo speedup vs scalar fallback | Positive on supported CPUs |
+| Filter setup | Cost to build the default phase table | Stable and amortized per resampler |
 
 ## Current Benchmark Datasets
 
@@ -47,6 +48,7 @@ The current `benches/resampler_bench.rs` file covers:
 - 1:1 passthrough overhead
 - Streaming chunk sizes for mono vs stereo
 - Direct scalar-vs-SIMD comparison on supported x86 targets
+- Different tap/phase configurations once filter tuning is configurable
 
 ## Memory Checks
 
@@ -80,13 +82,13 @@ Compare against reference implementations:
 ## Performance Targets
 
 ### Near-Term Targets
-- No per-channel deinterleave/reinterleave work in interleaved resampling
+- Stable Criterion baselines for mono and stereo 44.1 kHz -> 48 kHz polyphase cases
 - Stereo SIMD path measurably faster than the scalar fallback on supported CPUs
-- Stable Criterion baselines for mono and stereo 44.1 kHz -> 48 kHz cases
+- No per-channel deinterleave/reinterleave work in interleaved resampling
 
 ### Longer-Term Targets
-- Polyphase benchmarks once that implementation exists
-- Latency and quality measurements tied to the future filterbank
+- Latency and quality measurements tied to filter-length and phase-count tuning
+- Baselines for downsampling, streaming, and 1:1 overhead
 
 ## Regression Testing
 
