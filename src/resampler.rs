@@ -1,5 +1,5 @@
 use crate::ResampleError;
-use crate::polyphase::PolyphaseFilterBank;
+use crate::polyphase::{PolyphaseFilterBank, PolyphaseFilterParams};
 
 #[cfg(target_arch = "x86")]
 use core::arch::x86 as simd;
@@ -26,6 +26,18 @@ impl Resampler {
         I: Into<f64>,
         O: Into<f64>,
     {
+        Self::with_filter_params(input_rate, output_rate, PolyphaseFilterParams::default())
+    }
+
+    pub fn with_filter_params<I, O>(
+        input_rate: I,
+        output_rate: O,
+        filter_params: PolyphaseFilterParams,
+    ) -> Result<Self, ResampleError>
+    where
+        I: Into<f64>,
+        O: Into<f64>,
+    {
         let input_rate = input_rate.into();
         let output_rate = output_rate.into();
 
@@ -46,7 +58,7 @@ impl Resampler {
             input_rate,
             output_rate,
             ratio,
-            filter: PolyphaseFilterBank::new(ratio),
+            filter: PolyphaseFilterBank::try_with_params(ratio, filter_params)?,
         })
     }
 
@@ -60,6 +72,10 @@ impl Resampler {
 
     pub fn ratio(&self) -> f64 {
         self.ratio
+    }
+
+    pub fn filter_params(&self) -> PolyphaseFilterParams {
+        self.filter.params()
     }
 
     fn output_len(&self, input_len: usize) -> usize {
@@ -205,11 +221,29 @@ impl StreamingResampler {
         I: Into<f64> + Copy,
         O: Into<f64> + Copy,
     {
+        Self::with_filter_params(
+            input_rate,
+            output_rate,
+            channels,
+            PolyphaseFilterParams::default(),
+        )
+    }
+
+    pub fn with_filter_params<I, O>(
+        input_rate: I,
+        output_rate: O,
+        channels: usize,
+        filter_params: PolyphaseFilterParams,
+    ) -> Result<Self, ResampleError>
+    where
+        I: Into<f64> + Copy,
+        O: Into<f64> + Copy,
+    {
         if channels == 0 {
             return Err(ResampleError::InvalidChannelCount(channels));
         }
 
-        let resampler = Resampler::new(input_rate, output_rate)?;
+        let resampler = Resampler::with_filter_params(input_rate, output_rate, filter_params)?;
         let input_rate = input_rate.into();
         let output_rate = output_rate.into();
 
@@ -240,6 +274,10 @@ impl StreamingResampler {
 
     pub fn channels(&self) -> usize {
         self.channels
+    }
+
+    pub fn filter_params(&self) -> PolyphaseFilterParams {
+        self.resampler.filter_params()
     }
 
     pub fn latency_frames(&self) -> usize {

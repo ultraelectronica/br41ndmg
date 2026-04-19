@@ -1,4 +1,4 @@
-use br41ndmg::Resampler;
+use br41ndmg::{PolyphaseFilterParams, Resampler, Window};
 
 const EPSILON: f32 = 1.0e-6;
 
@@ -87,4 +87,46 @@ fn resampler_accepts_f32_sample_rates() {
 
     assert!((resampler.input_rate() - 44_100.0).abs() <= f64::EPSILON);
     assert!((resampler.output_rate() - 48_000.0).abs() <= f64::EPSILON);
+}
+
+#[test]
+fn resampler_accepts_custom_filter_params() {
+    let params = PolyphaseFilterParams {
+        phases: 64,
+        taps_per_phase: 31,
+        window: Window::Hann,
+    };
+    let resampler = Resampler::with_filter_params(44_100.0, 48_000.0, params).unwrap();
+
+    assert_eq!(resampler.filter_params(), params);
+}
+
+#[test]
+fn resampler_rejects_invalid_filter_params() {
+    let error = Resampler::with_filter_params(
+        44_100.0,
+        48_000.0,
+        PolyphaseFilterParams {
+            taps_per_phase: 32,
+            ..PolyphaseFilterParams::default()
+        },
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains("tap count"));
+}
+
+#[test]
+fn resampler_rejects_invalid_kaiser_window() {
+    let error = Resampler::with_filter_params(
+        44_100.0,
+        48_000.0,
+        PolyphaseFilterParams {
+            window: Window::Kaiser { beta: f64::NAN },
+            ..PolyphaseFilterParams::default()
+        },
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains("kaiser beta"));
 }
