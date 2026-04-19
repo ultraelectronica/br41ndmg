@@ -80,3 +80,11 @@ fn multichannel_interleaved_matches_per_channel_resampling() {
 
     assert_close(&actual, &expected);
 }
+
+#[test]
+fn resampler_accepts_f32_sample_rates() {
+    let resampler = Resampler::new(44_100.0_f32, 48_000.0_f32).unwrap();
+
+    assert!((resampler.input_rate() - 44_100.0).abs() <= f64::EPSILON);
+    assert!((resampler.output_rate() - 48_000.0).abs() <= f64::EPSILON);
+}
