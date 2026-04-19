@@ -5,27 +5,30 @@ br41ndmg/
 ├── Cargo.toml              # Workspace manifest and dependencies
 ├── .gitignore              # Ignores: /target, *.wav, flamegraphs
 ├── README.md               # Overview, quick start, roadmap
-├── CHANGELOG.md            # Feature, fix, and perf history
 │
 ├── src/
 │   ├── lib.rs              # Public re-exports, crate root
-│   ├── sinc.rs             # Core sinc function, safe x=0 branch
-│   ├── window.rs           # Hann, Blackman, Kaiser windowing
-│   ├── filter.rs           # FIR kernel generation and normalization
+│   ├── sinc.rs             # f64/f32 sinc helpers and kernel builders
+│   ├── window.rs           # f64/f32 Hann, Hamming, Blackman, Kaiser
+│   ├── filter.rs           # f64/f32 FIR kernel generation and normalization
 │   ├── io.rs               # WAV read/write and AudioBuffer helpers
-│   ├── polyphase.rs        # FilterBank, phase table
-│   ├── resampler.rs        # Offline and streaming resamplers
+│   ├── polyphase.rs        # Placeholder for a future filterbank
+│   ├── resampler.rs        # Offline and streaming linear resamplers
 │   ├── error.rs            # Error enum with thiserror
-│   └── utils.rs            # GCD, rational ratio helpers
+│   └── utils.rs            # Shared validation helpers
 │
 ├── tests/
-│   ├── impulse.rs          # Impulse response, symmetry tests
-│   ├── sine.rs             # Tone preservation, SNR verification
-│   ├── sweep.rs            # Aliasing, stopband energy checks
-│   └── quality_tests.rs    # Regression tests (expanded)
+│   ├── file_io.rs          # WAV normalization, write, and layout tests
+│   ├── filter.rs           # FIR helper tests
+│   ├── resampler.rs        # Offline interleaved resampler tests
+│   ├── streaming.rs        # Chunked streaming equivalence tests
+│   ├── impulse.rs          # Placeholder quality test file
+│   ├── sine.rs             # Placeholder quality test file
+│   ├── sweep.rs            # Placeholder quality test file
+│   └── quality_tests.rs    # Placeholder quality test file
 │
 ├── benches/
-│   └── resampler_bench.rs  # Criterion: throughput and latency
+│   └── resampler_bench.rs  # Criterion mono/stereo resampling benches
 │
 ├── examples/
 │   ├── resample_file.rs    # WAV in → WAV out via hound
@@ -35,8 +38,8 @@ br41ndmg/
     ├── ARCHITECTURE.md     # Module map, data flow
     ├── DSP_NOTES.md        # Sinc math, polyphase theory
     ├── TEST_PLAN.md        # Signals, thresholds, criteria
-    ├── BENCHMARK_PLAN.md   # Datasets, targets, comparison
-    ├── REQUIREMENTS.md     # Scope, quality targets, non-goals
-    ├── PERFORMANCE.md      # Profiling results, SIMD notes
+    ├── BENCHMARK_PLAN.md   # Current coverage and next perf work
+    ├── REQUIREMENTS.md     # Scope, capabilities, non-goals
+    ├── PERFORMANCE.md      # Current performance notes
     └── REALTIME.md         # Callback rules, latency tradeoffs
 ```

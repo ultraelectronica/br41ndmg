@@ -2,13 +2,15 @@
 
 ## Objective
 
-Build a production-quality polyphase sinc resampler in Rust that converts PCM audio between arbitrary sample rates with high fidelity, predictable latency, and measurable performance.
+Build from the current linear-interpolation resampler toward a production-quality polyphase sinc resampler in Rust with predictable behavior and measurable performance.
 
-## Supported Formats
+## Current Support
 
-- **Audio types**: Mono and stereo PCM
-- **Sample formats**: `f64` (primary), `f32` (future)
+- **Audio layout**: Mono and interleaved multichannel buffers, with stereo as the main optimized case
+- **Sample buffers**: `f32`
+- **DSP helpers**: `f64` and `f32` sinc/window/FIR generation
 - **Input/Output**: Offline file processing and real-time streaming
+- **WAV I/O**: 8/16/24/32-bit PCM input, 32-bit float input, 32-bit float output
 - **Resampling ratios**: Arbitrary rational and non-rational sample-rate ratios
 
 ## Quality Targets
@@ -21,7 +23,14 @@ Build a production-quality polyphase sinc resampler in Rust that converts PCM au
 | Latency | Predictable, bounded by filter length |
 | Output stability | Deterministic for identical inputs |
 
-## Performance Targets
+## Current Performance Priorities
+
+- Minimal allocations in hot paths
+- Stereo fast path for interleaved buffers
+- Throughput suitable for real-time audio processing
+- Benchmark suite with measurable metrics
+
+## Long-Term Performance Targets
 
 - Efficient polyphase filter implementation
 - Minimal allocations in hot paths
@@ -32,16 +41,17 @@ Build a production-quality polyphase sinc resampler in Rust that converts PCM au
 
 ### In Scope
 
-- High-quality sinc-based polyphase resampling
+- Linear interpolation resampling with stable offline and streaming APIs
 - Arbitrary sample-rate conversion (e.g., 44.1kHz → 48kHz)
-- Windowed FIR filter design (Hann, Hamming, Blackman, Kaiser)
+- Windowed FIR filter design helpers (Hann, Hamming, Blackman, Kaiser)
 - Offline batch processing
 - Real-time streaming support
-- Comprehensive test suite (impulse, sine, sweep)
+- SIMD acceleration where the memory layout makes it safe and simple
 - Performance benchmarks
 
 ### Out of Scope (Initial Release)
 
+- Polyphase filterbank quality work
 - Pitch shifting
 - Time stretching
 - AI upscaling
@@ -63,10 +73,10 @@ Build a production-quality polyphase sinc resampler in Rust that converts PCM au
 - **DSP Validation**: Impulse response, sine wave preservation, frequency sweep analysis
 - **Regression**: Known input/output pairs for comparison
 
-## Future Features
+## Next Features
 
-- SIMD optimization for performance
-- `f32` support
+- Polyphase sinc implementation
 - Real-time streaming with `cpal`
 - Additional window functions
 - Configurable filter parameters
+- Expanded DSP-quality regression tests
