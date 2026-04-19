@@ -1,5 +1,11 @@
 use crate::ResampleError;
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline]
+fn can_use_sse2() -> bool {
+    cfg!(target_feature = "sse2") || std::is_x86_feature_detected!("sse2")
+}
+
 #[derive(Debug, Clone)]
 pub struct Resampler {
     input_rate: f64,
@@ -69,25 +75,16 @@ impl Resampler {
         }
 
         let input_frames = input.len() / channels;
-        let mut per_channel = vec![Vec::with_capacity(input_frames); channels];
-
-        for frame in input.chunks_exact(channels) {
-            for (channel, sample) in frame.iter().enumerate() {
-                per_channel[channel].push(*sample);
-            }
+        let output_frames = self.output_len(input_frames);
+        if output_frames == 0 {
+            return Ok(Vec::new());
         }
 
-        let mut resampled_channels = Vec::with_capacity(channels);
-        for channel in per_channel {
-            resampled_channels.push(self.resample(&channel)?);
-        }
-
-        let output_frames = resampled_channels[0].len();
-        let mut output = Vec::with_capacity(output_frames * channels);
-        for frame_index in 0..output_frames {
-            for channel in &resampled_channels {
-                output.push(channel[frame_index]);
-            }
+        let mut output = vec![0.0; output_frames * channels];
+        if channels == 2 {
+            self.resample_interleaved_stereo_into(input, &mut output);
+        } else {
+            self.resample_interleaved_scalar_into(input, channels, &mut output);
         }
 
         Ok(output)
@@ -119,6 +116,54 @@ impl Resampler {
         }
 
         Ok(output)
+    }
+
+    fn resample_interleaved_scalar_into(&self, input: &[f32], channels: usize, output: &mut [f32]) {
+        let input_frames = input.len() / channels;
+        let output_frames = output.len() / channels;
+        let max_index = input_frames.saturating_sub(1);
+
+        for frame_index in 0..output_frames {
+            let position = (frame_index as f64) / self.ratio;
+            let index = position.floor() as usize;
+            let frac = (position - index as f64) as f32;
+
+            let idx = index.min(max_index);
+            let next = (idx + 1).min(max_index);
+            let input_a = &input[idx * channels..(idx + 1) * channels];
+            let input_b = &input[next * channels..(next + 1) * channels];
+            let output_frame = &mut output[frame_index * channels..(frame_index + 1) * channels];
+            interpolate_frame_scalar(output_frame, input_a, input_b, frac);
+        }
+    }
+
+    fn resample_interleaved_stereo_into(&self, input: &[f32], output: &mut [f32]) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        if can_use_sse2() {
+            let input_frames = input.len() / 2;
+            let output_frames = output.len() / 2;
+            let max_index = input_frames.saturating_sub(1);
+
+            for frame_index in 0..output_frames {
+                let position = (frame_index as f64) / self.ratio;
+                let index = position.floor() as usize;
+                let frac = (position - index as f64) as f32;
+
+                let idx = index.min(max_index);
+                let next = (idx + 1).min(max_index);
+                let input_a = &input[idx * 2..(idx + 1) * 2];
+                let input_b = &input[next * 2..(next + 1) * 2];
+                let output_frame = &mut output[frame_index * 2..(frame_index + 1) * 2];
+
+                unsafe {
+                    interpolate_stereo_frame_sse2(output_frame, input_a, input_b, frac);
+                }
+            }
+
+            return;
+        }
+
+        self.resample_interleaved_scalar_into(input, 2, output);
     }
 }
 
@@ -239,6 +284,17 @@ impl StreamingResampler {
         let previous_frames_seen = self.input_frames_seen;
         let total_frames = previous_frames_seen + input_frames;
         let mut written_frames = 0;
+        let use_simd = self.channels == 2 && {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                can_use_sse2()
+            }
+
+            #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+            {
+                false
+            }
+        };
 
         while self.next_position < total_frames as f64 - 1.0 {
             let index = self.next_position.floor() as usize;
@@ -247,10 +303,16 @@ impl StreamingResampler {
             let end = start + self.channels;
             let frame = &mut output[start..end];
 
-            for (channel, sample) in frame.iter_mut().enumerate() {
-                let a = self.sample_at(index, channel, input, previous_frames_seen)?;
-                let b = self.sample_at(index + 1, channel, input, previous_frames_seen)?;
-                *sample = a + (b - a) * frac;
+            let input_a = self.frame_at(index, input, previous_frames_seen)?;
+            let input_b = self.frame_at(index + 1, input, previous_frames_seen)?;
+
+            if use_simd {
+                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+                unsafe {
+                    interpolate_stereo_frame_sse2(frame, input_a, input_b, frac);
+                }
+            } else {
+                interpolate_frame_scalar(frame, input_a, input_b, frac);
             }
 
             written_frames += 1;
@@ -321,18 +383,17 @@ impl StreamingResampler {
         Ok(buffer.len() / self.channels)
     }
 
-    fn sample_at(
-        &self,
+    fn frame_at<'a>(
+        &'a self,
         frame_index: usize,
-        channel: usize,
-        input: &[f32],
+        input: &'a [f32],
         previous_frames_seen: usize,
-    ) -> Result<f32, ResampleError> {
+    ) -> Result<&'a [f32], ResampleError> {
         if self.has_last_frame
             && previous_frames_seen > 0
             && frame_index == previous_frames_seen - 1
         {
-            return Ok(self.last_frame[channel]);
+            return Ok(&self.last_frame);
         }
 
         if frame_index < previous_frames_seen {
@@ -342,8 +403,9 @@ impl StreamingResampler {
         }
 
         let local_frame = frame_index - previous_frames_seen;
-        let offset = local_frame * self.channels + channel;
-        input.get(offset).copied().ok_or_else(|| {
+        let start = local_frame * self.channels;
+        let end = start + self.channels;
+        input.get(start..end).ok_or_else(|| {
             ResampleError::BufferError(
                 "streaming resampler read beyond the current input chunk".into(),
             )
@@ -353,5 +415,48 @@ impl StreamingResampler {
     fn store_last_frame(&mut self, input: &[f32]) {
         let start = input.len() - self.channels;
         self.last_frame.copy_from_slice(&input[start..]);
+    }
+}
+
+#[inline]
+fn interpolate_frame_scalar(output: &mut [f32], input_a: &[f32], input_b: &[f32], frac: f32) {
+    for ((sample, a), b) in output.iter_mut().zip(input_a).zip(input_b) {
+        *sample = *a + (*b - *a) * frac;
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "sse2")]
+unsafe fn interpolate_stereo_frame_sse2(
+    output: &mut [f32],
+    input_a: &[f32],
+    input_b: &[f32],
+    frac: f32,
+) {
+    #[cfg(target_arch = "x86")]
+    use core::arch::x86::{
+        __m128i, _mm_add_ps, _mm_castps_si128, _mm_castsi128_ps, _mm_loadl_epi64, _mm_mul_ps,
+        _mm_set1_ps, _mm_storel_epi64, _mm_sub_ps,
+    };
+    #[cfg(target_arch = "x86_64")]
+    use core::arch::x86_64::{
+        __m128i, _mm_add_ps, _mm_castps_si128, _mm_castsi128_ps, _mm_loadl_epi64, _mm_mul_ps,
+        _mm_set1_ps, _mm_storel_epi64, _mm_sub_ps,
+    };
+
+    debug_assert!(output.len() >= 2);
+    debug_assert!(input_a.len() >= 2);
+    debug_assert!(input_b.len() >= 2);
+
+    let a = _mm_castsi128_ps(unsafe { _mm_loadl_epi64(input_a.as_ptr() as *const __m128i) });
+    let b = _mm_castsi128_ps(unsafe { _mm_loadl_epi64(input_b.as_ptr() as *const __m128i) });
+    let delta = _mm_sub_ps(b, a);
+    let result = _mm_add_ps(a, _mm_mul_ps(delta, _mm_set1_ps(frac)));
+
+    unsafe {
+        _mm_storel_epi64(
+            output.as_mut_ptr() as *mut __m128i,
+            _mm_castps_si128(result),
+        );
     }
 }
