@@ -1,18 +1,23 @@
 # br41ndmg
 
-A high-performance audio resampling library written in Rust, implementing polyphase sinc resampling for high-fidelity sample-rate conversion.
+A Rust audio resampling library with offline WAV I/O, streaming support, and a stereo SIMD fast path for the current linear-interpolation engine.
 
 ## Overview
 
-br41ndmg provides production-quality sample-rate conversion for audio applications. It uses windowed sinc interpolation with polyphase filter decomposition for efficient arbitrary-ratio resampling while maintaining excellent frequency response characteristics.
+`br41ndmg` currently resamples `f32` audio with linear interpolation. The library exposes both offline and streaming APIs, reads and writes WAV files, and keeps the hot stereo interleaved path allocation-free aside from the returned output buffer.
 
-### Key Features
+The longer-term goal is still a polyphase sinc resampler, but that filterbank is not implemented yet.
 
-- **High-quality resampling**: Windowed sinc-based FIR filtering
-- **Arbitrary ratios**: Convert between any sample rates (e.g., 44.1kHz → 48kHz)
-- **Configurable filters**: Multiple window functions (Hann, Hamming, Blackman, Kaiser)
-- **Benchmarked**: Comprehensive performance testing with criterion
-- **Testable**: DSP-validated with impulse, sine, and sweep tests
+## Current Features
+
+- `f32` sample buffers for offline and streaming resampling
+- `f32` and `f64` DSP helper APIs for sinc, window, and FIR kernel generation
+- Offline resampling for mono and interleaved multichannel buffers
+- Streaming resampling for interleaved audio
+- WAV input: 8/16/24/32-bit PCM and 32-bit float
+- WAV output: 32-bit float
+- SSE2 stereo fast path on `x86` and `x86_64`
+- Criterion benchmarks for mono and stereo 44.1 kHz -> 48 kHz conversion
 
 ## Quick Start
 
@@ -28,8 +33,8 @@ br41ndmg = "0.1"
 ```rust
 use br41ndmg::Resampler;
 
-let input_rate = 44100.0;
-let output_rate = 48000.0;
+let input_rate = 44_100.0f32;
+let output_rate = 48_000.0f32;
 let resampler = Resampler::new(input_rate, output_rate)?;
 
 let input_samples: Vec<f32> = /* your audio data */;
@@ -46,12 +51,12 @@ let output = input.resample_to(48_000)?;
 write_wav("output.wav", &output)?;
 ```
 
-### Real-time Streaming
+### Real-Time Streaming
 
 ```rust
 use br41ndmg::StreamingResampler;
 
-let mut stream = StreamingResampler::new(44_100.0, 48_000.0, 2)?;
+let mut stream = StreamingResampler::new(44_100.0f32, 48_000.0f32, 2)?;
 let input_frames = 256;
 let input_chunk = vec![0.0f32; input_frames * 2];
 let mut output = vec![0.0; stream.output_samples_for(input_frames)];
@@ -60,37 +65,29 @@ let written_frames = stream.process_into(&input_chunk, &mut output)?;
 let ready = &output[..written_frames * stream.channels()];
 ```
 
-### Examples
-
-```bash
-cargo run --example resample_file -- input.wav output.wav 48000
-cargo run --example tone_resample -- tone_resampled.wav
-```
-
 ## Roadmap
 
 - [x] Core math primitives (sinc, windows, FIR kernels)
-- [x] Naive resampler prototype
-- [x] Polyphase sinc implementation
+- [x] Naive linear resampler prototype
 - [x] File I/O integration (WAV)
 - [x] Real-time streaming support
-- [X] SIMD optimization
-- [ ] f32 support
+- [x] SIMD optimization for stereo interleaved paths
+- [x] `f32` DSP helper support
+- [ ] Polyphase sinc implementation
+- [ ] DSP quality validation suite expansion
 
 ## Documentation
 
-- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) - Project requirements and scope
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design and data flow
-- [docs/DSP_NOTES.md](docs/DSP_NOTES.md) - DSP theory and algorithms
+- [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) - Scope and current capabilities
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Module map and current data flow
+- [docs/DSP_NOTES.md](docs/DSP_NOTES.md) - Sinc and polyphase theory notes
 - [docs/TEST_PLAN.md](docs/TEST_PLAN.md) - Testing strategy
-- [docs/BENCHMARK_PLAN.md](docs/BENCHMARK_PLAN.md) - Performance benchmarks
+- [docs/BENCHMARK_PLAN.md](docs/BENCHMARK_PLAN.md) - Benchmark coverage and next steps
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md) - Current performance notes
 
-## Supported WAV Formats
+## Long-Term Targets
 
-- Input: 8/16/24/32-bit PCM WAV and 32-bit float WAV
-- Output: 32-bit float WAV
-
-## Quality Targets
+These are project goals for the future polyphase implementation, not current guarantees.
 
 | Metric | Target |
 |--------|--------|
