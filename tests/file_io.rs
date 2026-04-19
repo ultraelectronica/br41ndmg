@@ -1,3 +1,4 @@
+use br41ndmg::Resampler;
 use br41ndmg::io::{AudioBuffer, read_wav, write_wav};
 use hound::{SampleFormat, WavSpec, WavWriter};
 use std::path::PathBuf;
@@ -67,12 +68,18 @@ fn audio_buffer_resample_to_preserves_stereo_layout() {
     let input = AudioBuffer::new(4, 2, vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0]).unwrap();
 
     let output = input.resample_to(8).unwrap();
+    let resampler = Resampler::new(4.0, 8.0).unwrap();
+    let left = resampler.resample(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+    let right = resampler.resample(&[10.0, 20.0, 30.0, 40.0]).unwrap();
 
     assert_eq!(output.channels(), 2);
     assert_eq!(output.sample_rate(), 8);
     assert_eq!(output.frame_count(), 8);
     assert_eq!(output.samples()[0], 1.0);
     assert_eq!(output.samples()[1], 10.0);
-    assert_eq!(output.samples()[14], 4.0);
-    assert_eq!(output.samples()[15], 40.0);
+
+    for frame in 0..output.frame_count() {
+        assert!((output.samples()[frame * 2] - left[frame]).abs() <= 1.0e-5);
+        assert!((output.samples()[frame * 2 + 1] - right[frame]).abs() <= 1.0e-5);
+    }
 }

@@ -1,4 +1,4 @@
-use br41ndmg::{Resampler, StreamingResampler};
+use br41ndmg::{PolyphaseFilterParams, Resampler, StreamingResampler, Window};
 
 const EPSILON: f32 = 1.0e-6;
 
@@ -92,4 +92,26 @@ fn streaming_rejects_processing_after_flush_without_reset() {
         .process_into(&[0.25, 0.75], &mut next_output)
         .unwrap_err();
     assert!(error.to_string().contains("cannot process after flush"));
+}
+
+#[test]
+fn streaming_matches_offline_with_custom_filter_params() {
+    let params = PolyphaseFilterParams {
+        phases: 128,
+        taps_per_phase: 31,
+        window: Window::Hamming,
+    };
+    let input: Vec<f32> = (0..48)
+        .map(|index| (((index as f32) * 0.29).sin() * 0.5) + ((index as f32) * 0.07).cos() * 0.2)
+        .collect();
+    let offline = Resampler::with_filter_params(44_100.0, 48_000.0, params)
+        .unwrap()
+        .resample(&input)
+        .unwrap();
+
+    let mut stream = StreamingResampler::with_filter_params(44_100.0, 48_000.0, 1, params).unwrap();
+    let chunked = collect_stream_output(&mut stream, &input, &[3, 5, 2, 9, 4, 7, 18]);
+
+    assert_eq!(stream.filter_params(), params);
+    assert_close(&chunked, &offline);
 }

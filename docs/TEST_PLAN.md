@@ -2,7 +2,14 @@
 
 ## Overview
 
-Comprehensive testing strategy for validating resampler correctness, audio quality, and DSP characteristics.
+Current testing strategy for validating resampler correctness, audio quality, and DSP characteristics.
+
+The checked-in integration suite already covers:
+- Impulse identity at 1:1 ratio and main-lobe symmetry when upsampling
+- Low-frequency sine round-trip error and passband RMS preservation
+- Downsampled sweep attenuation for out-of-band content
+- DC stability, out-of-band tone suppression, and stereo round-trip quality
+- Offline vs streaming equivalence and WAV I/O regressions
 
 ## Test Signals
 
@@ -25,10 +32,10 @@ fn generate_impulse(n: usize) -> Vec<f32> {
 - Symmetric about center
 - No unexpected ringing or pre-echo
 
-**Validation**:
-- Peak amplitude within 3dB of input
-- Side lobe levels below -80dB
-- Check for NaN/Inf values
+**Current validation**:
+- 1:1 ratio preserves a centered impulse sample-for-sample
+- 2x upsampling keeps the main lobe symmetric around the peak
+- Check for NaN/Inf values implicitly through exact/approximate assertions
 
 ### 2. Sine Waves
 
@@ -57,10 +64,9 @@ fn generate_sine(freq: f32, sample_rate: f32, duration: f32) -> Vec<f32> {
 - No aliasing artifacts visible in spectrum
 - Stable amplitude over time
 
-**Validation**:
-- SNR > 100dB for sine preservation
-- THD < -100dB
-- Peak frequency within 0.1% of expected
+**Current validation**:
+- Low-frequency round-trip RMSE stays below `8e-3`
+- Passband RMS stays within 5% after resampling
 
 ### 3. Frequency Sweeps
 
@@ -84,10 +90,8 @@ fn generate_sweep(sample_rate: f32, duration: f32,
 - 20 Hz → 20 kHz (full audible range)
 - 20 Hz → Nyquist (for Nyquist-rate conversions)
 
-**Validation**:
-- No sudden amplitude jumps
-- Smooth spectral response
-- No aliasing in downsampled regions
+**Current validation**:
+- Downsampled out-of-band sweep RMS stays below 20% of an in-band reference sweep
 
 ### 4. DC Signal
 
@@ -106,24 +110,24 @@ All zeros input tests handling of empty/negligible signal.
 
 **Expected**: Output all zeros (no NaN, no artifacts).
 
-## Quality Thresholds
+## Checked-In Thresholds
 
 | Test | Metric | Threshold |
 |------|--------|-----------|
-| Impulse | Peak amplitude | ±0.5 dB of input |
-| Impulse | Side lobe level | < -80 dB |
-| Sine | SNR | > 100 dB |
-| Sine | THD | < -100 dB |
-| Sweep | Amplitude variation | < 1 dB across band |
-| DC | DC gain accuracy | ±0.1 dB |
-| All | NaN/Inf check | Zero occurrences |
-| All | Output length | Matches expected ratio |
+| Impulse | 1:1 identity | Exact within `1e-6` |
+| Impulse | 2x symmetry | Local lobe mismatch <= `5e-4` |
+| Sine | Round-trip RMSE | <= `8e-3` |
+| Sine | Passband RMS drift | <= 5% |
+| Sweep | Out-of-band attenuation | RMS < 20% of in-band sweep |
+| DC | DC gain accuracy | <= `1e-3` after edge trim |
+| Tone | 12 kHz -> 16 kHz suppression | RMS <= `0.05` |
+| Stereo | Per-channel round-trip RMSE | <= `1e-2` |
 
 ## Pass/Fail Criteria
 
-A test passes when:
+A checked-in test passes when:
 1. All samples are finite (no NaN/Inf)
-2. Quality metrics meet thresholds
+2. The specific signal metric meets its threshold
 3. Output length equals expected
 4. Boundary conditions handled gracefully
 
@@ -142,19 +146,23 @@ A test fails when:
 - `test_deterministic` - Same input → same output
 
 ### DSP Tests
-- `test_impulse_response` - Verify filter characteristics
-- `test_sine_preservation` - Frequency accuracy
-- `test_dc_gain` - DC response
-- `test_silence` - Zero signal handling
+- `tests/impulse.rs` - Impulse identity and symmetry
+- `tests/sine.rs` - Round-trip and passband tone preservation
+- `tests/sweep.rs` - Out-of-band sweep attenuation
+- `tests/quality_tests.rs` - DC response, alias suppression, stereo quality
 
 ### Conversion Tests
-- `test_44100_to_48000` - Common ratio
-- `test_48000_to_44100` - Inverse ratio
-- `test_upsample_2x` - Simple integer ratio
-- `test_downsample_2x` - Simple integer ratio
-- `test_96000_to_48000` - Large ratio
+- `tests/resampler.rs` - Interleaved vs per-channel equivalence
+- `tests/streaming.rs` - Offline vs streaming equivalence
+- `tests/file_io.rs` - WAV conversion and layout preservation
 
 ### Edge Cases
 - `test_very_small_ratio` - Extreme downsampling
 - `test_very_large_ratio` - Extreme upsampling
 - `test_identical_rates` - 1:1 ratio (passthrough)
+
+## Next Validation Work
+
+- Spectral measurements for THD, stopband attenuation, and passband ripple
+- Longer real-world fixtures in addition to synthetic signals
+- Benchmark-linked quality baselines for multiple filter settings
