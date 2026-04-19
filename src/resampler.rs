@@ -14,7 +14,14 @@ pub struct Resampler {
 }
 
 impl Resampler {
-    pub fn new(input_rate: f64, output_rate: f64) -> Result<Self, ResampleError> {
+    pub fn new<I, O>(input_rate: I, output_rate: O) -> Result<Self, ResampleError>
+    where
+        I: Into<f64>,
+        O: Into<f64>,
+    {
+        let input_rate = input_rate.into();
+        let output_rate = output_rate.into();
+
         if !input_rate.is_finite() || input_rate <= 0.0 {
             return Err(ResampleError::InvalidSampleRate(input_rate));
         }
@@ -181,12 +188,18 @@ pub struct StreamingResampler {
 }
 
 impl StreamingResampler {
-    pub fn new(input_rate: f64, output_rate: f64, channels: usize) -> Result<Self, ResampleError> {
+    pub fn new<I, O>(input_rate: I, output_rate: O, channels: usize) -> Result<Self, ResampleError>
+    where
+        I: Into<f64> + Copy,
+        O: Into<f64> + Copy,
+    {
         if channels == 0 {
             return Err(ResampleError::InvalidChannelCount(channels));
         }
 
         let resampler = Resampler::new(input_rate, output_rate)?;
+        let input_rate = input_rate.into();
+        let output_rate = output_rate.into();
 
         Ok(Self {
             resampler,
