@@ -45,7 +45,7 @@ pub fn apply_window_f32(window: Window, length: usize) -> Vec<f32> {
     values
 }
 
-fn window_value(window: Window, t: f64) -> f64 {
+pub(crate) fn window_value(window: Window, t: f64) -> f64 {
     match window {
         Window::Hann => hann_value(t),
         Window::Hamming => hamming_value(t),
@@ -54,7 +54,7 @@ fn window_value(window: Window, t: f64) -> f64 {
     }
 }
 
-fn window_value_f32(window: Window, t: f32) -> f32 {
+pub(crate) fn window_value_f32(window: Window, t: f32) -> f32 {
     match window {
         Window::Hann => hann_value_f32(t),
         Window::Hamming => hamming_value_f32(t),
