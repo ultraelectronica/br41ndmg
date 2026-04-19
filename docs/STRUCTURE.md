@@ -12,8 +12,8 @@ br41ndmg/
 │   ├── window.rs           # f64/f32 Hann, Hamming, Blackman, Kaiser
 │   ├── filter.rs           # f64/f32 FIR kernel generation and normalization
 │   ├── io.rs               # WAV read/write and AudioBuffer helpers
-│   ├── polyphase.rs        # Placeholder for a future filterbank
-│   ├── resampler.rs        # Offline and streaming linear resamplers
+│   ├── polyphase.rs        # Polyphase sinc filter-bank builder and phase lookup
+│   ├── resampler.rs        # Offline and streaming polyphase resamplers
 │   ├── error.rs            # Error enum with thiserror
 │   └── utils.rs            # Shared validation helpers
 │
@@ -22,10 +22,10 @@ br41ndmg/
 │   ├── filter.rs           # FIR helper tests
 │   ├── resampler.rs        # Offline interleaved resampler tests
 │   ├── streaming.rs        # Chunked streaming equivalence tests
-│   ├── impulse.rs          # Placeholder quality test file
-│   ├── sine.rs             # Placeholder quality test file
-│   ├── sweep.rs            # Placeholder quality test file
-│   └── quality_tests.rs    # Placeholder quality test file
+│   ├── impulse.rs          # Impulse identity and symmetry checks
+│   ├── sine.rs             # Sine round-trip and passband RMS checks
+│   ├── sweep.rs            # Sweep attenuation regression checks
+│   └── quality_tests.rs    # DC, alias suppression, and stereo quality checks
 │
 ├── benches/
 │   └── resampler_bench.rs  # Criterion mono/stereo resampling benches
@@ -37,7 +37,7 @@ br41ndmg/
 └── docs/
     ├── ARCHITECTURE.md     # Module map, data flow
     ├── DSP_NOTES.md        # Sinc math, polyphase theory
-    ├── TEST_PLAN.md        # Signals, thresholds, criteria
+    ├── TEST_PLAN.md        # Signals, thresholds, and checked-in coverage
     ├── BENCHMARK_PLAN.md   # Current coverage and next perf work
     ├── REQUIREMENTS.md     # Scope, capabilities, non-goals
     ├── PERFORMANCE.md      # Current performance notes

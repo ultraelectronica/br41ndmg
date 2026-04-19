@@ -2,13 +2,14 @@
 
 ## Objective
 
-Build from the current linear-interpolation resampler toward a production-quality polyphase sinc resampler in Rust with predictable behavior and measurable performance.
+Build and validate a polyphase sinc resampler in Rust with predictable behavior and measurable performance.
 
 ## Current Support
 
 - **Audio layout**: Mono and interleaved multichannel buffers, with stereo as the main optimized case
 - **Sample buffers**: `f32`
 - **DSP helpers**: `f64` and `f32` sinc/window/FIR generation
+- **Resampling core**: Polyphase sinc interpolation with precomputed phases
 - **Input/Output**: Offline file processing and real-time streaming
 - **WAV I/O**: 8/16/24/32-bit PCM input, 32-bit float input, 32-bit float output
 - **Resampling ratios**: Arbitrary rational and non-rational sample-rate ratios
@@ -41,17 +42,17 @@ Build from the current linear-interpolation resampler toward a production-qualit
 
 ### In Scope
 
-- Linear interpolation resampling with stable offline and streaming APIs
+- Polyphase sinc resampling with stable offline and streaming APIs
 - Arbitrary sample-rate conversion (e.g., 44.1kHz → 48kHz)
 - Windowed FIR filter design helpers (Hann, Hamming, Blackman, Kaiser)
 - Offline batch processing
 - Real-time streaming support
 - SIMD acceleration where the memory layout makes it safe and simple
 - Performance benchmarks
+- DSP validation tests for impulse, sine, sweep, DC, and alias suppression regressions
 
 ### Out of Scope (Initial Release)
 
-- Polyphase filterbank quality work
 - Pitch shifting
 - Time stretching
 - AI upscaling
@@ -75,8 +76,7 @@ Build from the current linear-interpolation resampler toward a production-qualit
 
 ## Next Features
 
-- Polyphase sinc implementation
 - Real-time streaming with `cpal`
 - Additional window functions
 - Configurable filter parameters
-- Expanded DSP-quality regression tests
+- Expanded spectral-analysis regression tests
