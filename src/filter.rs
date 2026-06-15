@@ -1,3 +1,9 @@
+//! Windowed-sinc FIR kernel builders (`f64` and `f32`).
+//!
+//! [`FirKernel`] / [`FirKernelF32`] own a normalized windowed-sinc kernel plus
+//! its cutoff and window metadata. Use them as general low-pass FIR design
+//! helpers independent of the resampler.
+
 use crate::sinc::{normalized_sinc, normalized_sinc_f32};
 use crate::utils::{validate_cutoff, validate_cutoff_f32};
 use crate::window::{Window, apply_window, apply_window_f32};
