@@ -1,3 +1,10 @@
+//! Polyphase sinc filter-bank construction and phase lookup.
+//!
+//! [`PolyphaseFilterBank`] precomputes one windowed-sinc coefficient set per
+//! fractional phase so resampling only needs a table lookup plus a FIR dot
+//! product per output sample. [`PolyphaseFilterParams`] controls the phase
+//! count, taps per phase, and window.
+
 use crate::ResampleError;
 use crate::sinc::normalized_sinc;
 use crate::window::{Window, window_value};
@@ -8,6 +15,13 @@ pub const DEFAULT_WINDOW: Window = Window::Blackman;
 
 const DOWNSAMPLE_CUTOFF_MARGIN: f64 = 0.95;
 
+/// Tunable polyphase filter parameters.
+///
+/// - `phases`: number of precomputed fractional phases (higher = finer
+///   fractional-delay resolution at the cost of a larger coefficient table).
+/// - `taps_per_phase`: must be **odd** and non-zero; larger values give a
+///   sharper filter (more stopband attenuation) and longer latency.
+/// - `window`: the window applied to the sinc kernel.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PolyphaseFilterParams {
     pub phases: usize,
@@ -33,18 +47,18 @@ impl PolyphaseFilterParams {
             ));
         }
 
-        if self.taps_per_phase == 0 || self.taps_per_phase % 2 == 0 {
+        if self.taps_per_phase == 0 || self.taps_per_phase.is_multiple_of(2) {
             return Err(ResampleError::InvalidFilterConfig(
                 "tap count must be odd and non-zero".into(),
             ));
         }
 
-        if let Window::Kaiser { beta } = self.window {
-            if !beta.is_finite() || beta < 0.0 {
-                return Err(ResampleError::InvalidFilterConfig(
-                    "kaiser beta must be non-negative and finite".into(),
-                ));
-            }
+        if let Window::Kaiser { beta } = self.window
+            && (!beta.is_finite() || beta < 0.0)
+        {
+            return Err(ResampleError::InvalidFilterConfig(
+                "kaiser beta must be non-negative and finite".into(),
+            ));
         }
 
         Ok(())
