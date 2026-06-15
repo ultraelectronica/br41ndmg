@@ -1,5 +1,8 @@
+//! Error type for the crate.
+
 use thiserror::Error;
 
+/// All errors returned by `br41ndmg`.
 #[derive(Error, Debug)]
 pub enum ResampleError {
     #[error("Invalid sample rate: {0}")]
@@ -16,4 +19,8 @@ pub enum ResampleError {
     UnsupportedWavFormat(String),
     #[error("WAV error: {0}")]
     Wav(#[from] hound::Error),
+    /// Decoding error from an optional codec (currently FLAC via claxon).
+    #[cfg(feature = "flac")]
+    #[error("FLAC error: {0}")]
+    Flac(#[from] claxon::Error),
 }
