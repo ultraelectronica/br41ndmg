@@ -1,5 +1,10 @@
 # br41ndmg
 
+[![Crates.io](https://img.shields.io/crates/v/br41ndmg)](https://crates.io/crates/br41ndmg)
+[![docs.rs](https://img.shields.io/docsrs/br41ndmg)](https://docs.rs/br41ndmg)
+[![CI](https://github.com/ultraelectronica/br41ndmg/actions/workflows/ci.yml/badge.svg)](https://github.com/ultraelectronica/br41ndmg/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A Rust audio resampling library with a polyphase sinc engine, offline and streaming APIs, WAV/FLAC input, and a stereo SSE2 fast path.
 
 ## Overview
