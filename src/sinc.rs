@@ -1,3 +1,10 @@
+//! Numerically safe sinc helpers and sinc-kernel builders (`f64` and `f32`).
+//!
+//! [`sinc`] / [`sinc_f32`] evaluate the normalized cardinal sine. The kernel
+//! builders ([`sinc_kernel`], [`sinc_kernel_f32`]) produce a windowed, DC-normalized
+//! FIR low-pass kernel centered for a Type I (odd length) or Type II (even length)
+//! linear-phase FIR.
+
 use crate::utils::{validate_cutoff, validate_cutoff_f32};
 use std::f32::consts::PI as PI_F32;
 use std::f64::consts::PI as PI_F64;

@@ -1,11 +1,24 @@
+//! Window functions used to truncate the sinc kernel into a finite FIR filter.
+//!
+//! All windows are parameterized by a normalized coordinate `t` in `[-1, 1]`
+//! and are symmetric about `t = 0`. Use [`apply_window`] / [`apply_window_f32`]
+//! to sample a window of a given length.
+
 use std::f32::consts::PI as PI_F32;
 use std::f64::consts::PI as PI_F64;
 
+/// Window shapes supported by the sinc kernel and polyphase filter bank.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Window {
+    /// Hann window: smooth rolloff, good all-purpose choice.
     Hann,
+    /// Hamming window: slightly higher first sidelobe than Hann.
     Hamming,
+    /// Blackman window: wider main lobe, strong sidelobe suppression
+    /// (the default for the polyphase filter bank).
     Blackman,
+    /// Kaiser window with tunable shape factor `beta`. Larger `beta` trades a
+    /// wider main lobe for lower sidelobes.
     Kaiser { beta: f64 },
 }
 
@@ -127,22 +140,5 @@ fn i0(x: f64) -> f64 {
 }
 
 fn i0_f32(x: f32) -> f32 {
-    let ax = x.abs();
-    if ax < 3.75 {
-        let y = (x / 3.75).powi(2);
-        1.0 + y
-            * (3.5156229
-                + y * (3.0899424
-                    + y * (1.2067492 + y * (0.2659732 + y * (0.0360768 + y * 0.0045813)))))
-    } else {
-        let y = 3.75 / ax;
-        (ax.exp() / ax.sqrt())
-            * (0.39894228
-                + y * (0.01328592
-                    + y * (0.00225319
-                        + y * (-0.00157565
-                            + y * (0.00916281
-                                + y * (-0.02057706
-                                    + y * (0.02635537 + y * (-0.01647633 + y * 0.00392377))))))))
-    }
+    i0(x as f64) as f32
 }

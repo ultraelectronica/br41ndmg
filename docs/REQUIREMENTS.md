@@ -12,7 +12,9 @@ Build and validate a polyphase sinc resampler in Rust with predictable behavior 
 - **Resampling core**: Polyphase sinc interpolation with precomputed phases
 - **Input/Output**: Offline file processing and real-time streaming
 - **WAV I/O**: 8/16/24/32-bit PCM input, 32-bit float input, 32-bit float output
+- **FLAC input**: 4/8/12/16/20/24/32-bit samples (default `flac` feature, pure-Rust decoder)
 - **Resampling ratios**: Arbitrary rational and non-rational sample-rate ratios
+- **Streaming/offline parity**: Streaming output is bit-exact with the offline path
 
 ## Quality Targets
 
