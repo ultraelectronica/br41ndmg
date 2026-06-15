@@ -2,10 +2,21 @@
 name = "br41ndmg"
 version = "0.1.0"
 edition = "2024"
+description = "A polyphase sinc audio resampler with offline and streaming APIs for Rust."
+license = "MIT"
+repository = "https://github.com/anomalyco/br41ndmg"
+keywords = ["audio", "dsp", "resampling", "resampler", "polyphase"]
+categories = ["multimedia::audio", "algorithms"]
+
+[features]
+default = ["flac"]
+# FLAC decoding support via the pure-Rust claxon decoder.
+flac = ["dep:claxon"]
 
 [dependencies]
 hound = "3.5"
 thiserror = "1"
+claxon = { version = "0.4", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

@@ -1,10 +1,10 @@
 # br41ndmg
 
-A Rust audio resampling library with a polyphase sinc engine, offline WAV I/O, streaming support, and a stereo SSE2 fast path.
+A Rust audio resampling library with a polyphase sinc engine, offline and streaming APIs, WAV/FLAC input, and a stereo SSE2 fast path.
 
 ## Overview
 
-`br41ndmg` currently resamples `f32` audio with a precomputed polyphase sinc filter bank. The library exposes both offline and streaming APIs, reads and writes WAV files, and uses the same filter math in chunked and full-buffer processing.
+`br41ndmg` resamples `f32` audio with a precomputed polyphase sinc filter bank. The library exposes both offline and streaming APIs, reads WAV and FLAC files, writes WAV, and uses the same filter math in chunked and full-buffer processing — so streaming output is bit-for-bit identical to the offline path.
 
 ## Current Features
 
@@ -15,10 +15,13 @@ A Rust audio resampling library with a polyphase sinc engine, offline WAV I/O, s
 - Polyphase sinc filtering with precomputed fractional phases
 - Configurable polyphase filter phase count, tap count, and window
 - WAV input: 8/16/24/32-bit PCM and 32-bit float
+- FLAC input: 4–32-bit samples (default `flac` feature, pure-Rust decoder)
 - WAV output: 32-bit float
 - SSE2 stereo fast path on `x86` and `x86_64`
+- Streaming output is bit-exact with the offline path regardless of input chunking
 - DSP validation tests for impulse, sine, sweep, DC, and alias-suppression regressions
-- Criterion benchmarks for mono and stereo 44.1 kHz -> 48 kHz conversion
+- Real-audio integration tests driven by `test_subjects/` FLAC fixtures
+- Criterion benchmarks for mono and stereo 44.1 kHz → 48 kHz conversion
 
 ## Quick Start
 
@@ -27,6 +30,13 @@ A Rust audio resampling library with a polyphase sinc engine, offline WAV I/O, s
 ```toml
 [dependencies]
 br41ndmg = "0.1"
+```
+
+The default features include FLAC support. To build a leaner, WAV-only crate:
+
+```toml
+[dependencies]
+br41ndmg = { version = "0.1", default-features = false }
 ```
 
 ### Basic Usage
@@ -55,12 +65,13 @@ let params = PolyphaseFilterParams {
 let resampler = Resampler::with_filter_params(44_100.0, 48_000.0, params)?;
 ```
 
-### WAV File I/O
+### File I/O (WAV and FLAC)
 
 ```rust
-use br41ndmg::io::{read_wav, write_wav};
+use br41ndmg::io::{read_audio, write_wav};
 
-let input = read_wav("input.wav")?;
+// .wav or .flac — the decoder is selected from the extension
+let input = read_audio("input.flac")?;
 let output = input.resample_to(48_000)?;
 write_wav("output.wav", &output)?;
 ```
@@ -79,26 +90,47 @@ let written_frames = stream.process_into(&input_chunk, &mut output)?;
 let ready = &output[..written_frames * stream.channels()];
 ```
 
+### Command-Line Example
+
+Resample a file, a file into a directory (auto-named `<stem>_<rate>Hz.wav`),
+or a whole folder at once:
+
+```bash
+# single file -> explicit output path
+cargo run --release --example resample_file -- input.flac output.wav 48000
+
+# single file -> directory (auto-named)
+cargo run --release --example resample_file -- input.flac out_dir/ 48000
+
+# batch: every .wav/.flac in a folder -> out_dir/
+cargo run --release --example resample_file -- test_subjects/ out_dir/ 48000
+```
+
 ## Roadmap
 
 - [x] Core math primitives (sinc, windows, FIR kernels)
 - [x] Polyphase sinc implementation
-- [x] File I/O integration (WAV)
+- [x] File I/O integration (WAV + FLAC)
 - [x] Real-time streaming support
 - [x] SIMD optimization for stereo interleaved paths
 - [x] `f32` DSP helper support
 - [x] DSP quality validation suite expansion
 - [x] Configurable polyphase filter parameters
+- [x] Bit-exact streaming/offline equivalence
 - [ ] Expanded performance baselines and profiling data
 
 ## Documentation
 
+- [docs/USAGE.md](docs/USAGE.md) - End-user guide and recipes
 - [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) - Scope and current capabilities
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Module map and current data flow
 - [docs/DSP_NOTES.md](docs/DSP_NOTES.md) - Sinc and polyphase theory notes
+- [docs/REALTIME.md](docs/REALTIME.md) - Real-time / callback guidance
 - [docs/TEST_PLAN.md](docs/TEST_PLAN.md) - Testing strategy
 - [docs/BENCHMARK_PLAN.md](docs/BENCHMARK_PLAN.md) - Benchmark coverage and next steps
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) - Current performance notes
+
+API documentation is generated with `cargo doc --open`.
 
 ## Long-Term Targets
 
