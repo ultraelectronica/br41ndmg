@@ -12,6 +12,19 @@ fn can_use_sse2() -> bool {
     cfg!(target_feature = "sse2") || std::is_x86_feature_detected!("sse2")
 }
 
+/// Offline polyphase sinc resampler.
+///
+/// Construct once and reuse for any number of buffers at the same rate pair.
+/// `input_rate`/`output_rate` may be `f32`, `f64`, or integer types via the
+/// `Into<f64>` bounds.
+///
+/// ```
+/// use br41ndmg::Resampler;
+///
+/// let resampler = Resampler::new(44_100.0_f32, 48_000.0_f32)?;
+/// let output = resampler.resample(&[0.0_f32; 512])?;
+/// # Ok::<(), br41ndmg::ResampleError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct Resampler {
     input_rate: f64,
@@ -21,6 +34,7 @@ pub struct Resampler {
 }
 
 impl Resampler {
+    /// Build a resampler with the default filter parameters.
     pub fn new<I, O>(input_rate: I, output_rate: O) -> Result<Self, ResampleError>
     where
         I: Into<f64>,
@@ -29,6 +43,7 @@ impl Resampler {
         Self::with_filter_params(input_rate, output_rate, PolyphaseFilterParams::default())
     }
 
+    /// Build a resampler with a custom [`PolyphaseFilterParams`].
     pub fn with_filter_params<I, O>(
         input_rate: I,
         output_rate: O,
@@ -66,14 +81,17 @@ impl Resampler {
         self.input_rate
     }
 
+    /// Target sample rate in Hz.
     pub fn output_rate(&self) -> f64 {
         self.output_rate
     }
 
+    /// `output_rate / input_rate`.
     pub fn ratio(&self) -> f64 {
         self.ratio
     }
 
+    /// Snapshot of the active filter parameters.
     pub fn filter_params(&self) -> PolyphaseFilterParams {
         self.filter.params()
     }
@@ -82,6 +100,7 @@ impl Resampler {
         ((input_len as f64) * self.ratio).round() as usize
     }
 
+    /// Resample a mono (`channels == 1`) interleaved buffer.
     pub fn resample_interleaved(
         &self,
         input: &[f32],
@@ -95,7 +114,7 @@ impl Resampler {
             return Ok(Vec::new());
         }
 
-        if input.len() % channels != 0 {
+        if !input.len().is_multiple_of(channels) {
             return Err(ResampleError::BufferError(
                 "interleaved input length must be divisible by channel count".into(),
             ));
@@ -119,6 +138,7 @@ impl Resampler {
         Ok(output)
     }
 
+    /// Resample a mono buffer. Equivalent to `resample_interleaved(input, 1)`.
     pub fn resample(&self, input: &[f32]) -> Result<Vec<f32>, ResampleError> {
         if input.is_empty() {
             return Ok(Vec::new());
@@ -202,12 +222,27 @@ impl Resampler {
     }
 }
 
+/// Chunked, low-latency polyphase resampler for interleaved audio.
+///
+/// Designed for real-time pipelines: feed variable-size input chunks via
+/// [`process_into`](Self::process_into) into a reusable output buffer, then
+/// drain the tail with [`flush_into`](Self::flush_into). The same polyphase
+/// filter math as [`Resampler`] is used, so streaming output is bit-for-bit
+/// equivalent to the offline path.
+///
+/// ```
+/// use br41ndmg::StreamingResampler;
+///
+/// let mut stream = StreamingResampler::new(44_100.0_f32, 48_000.0_f32, 2)?;
+/// let input = vec![0.0_f32; 256 * 2];
+/// let mut output = vec![0.0; stream.output_samples_for(256)];
+/// let written = stream.process_into(&input, &mut output)?;
+/// # Ok::<(), br41ndmg::ResampleError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct StreamingResampler {
     resampler: Resampler,
     channels: usize,
-    step: f64,
-    next_position: f64,
     input_frames_received: usize,
     output_frames_emitted: usize,
     history_start_frame: usize,
@@ -216,6 +251,7 @@ pub struct StreamingResampler {
 }
 
 impl StreamingResampler {
+    /// Build a streaming resampler with default filter parameters.
     pub fn new<I, O>(input_rate: I, output_rate: O, channels: usize) -> Result<Self, ResampleError>
     where
         I: Into<f64> + Copy,
@@ -229,6 +265,7 @@ impl StreamingResampler {
         )
     }
 
+    /// Build a streaming resampler with custom filter parameters.
     pub fn with_filter_params<I, O>(
         input_rate: I,
         output_rate: O,
@@ -244,20 +281,25 @@ impl StreamingResampler {
         }
 
         let resampler = Resampler::with_filter_params(input_rate, output_rate, filter_params)?;
-        let input_rate = input_rate.into();
-        let output_rate = output_rate.into();
 
         Ok(Self {
             resampler,
             channels,
-            step: input_rate / output_rate,
-            next_position: 0.0,
             input_frames_received: 0,
             output_frames_emitted: 0,
             history_start_frame: 0,
             history: Vec::new(),
             finished: false,
         })
+    }
+
+    /// Input-frame position for the `output_index`-th output sample.
+    ///
+    /// Uses the exact same expression as the offline path
+    /// (`output_index / ratio`) so streaming stays bit-for-bit identical to
+    /// offline resampling regardless of how the input is chunked.
+    fn position_for(&self, output_index: usize) -> f64 {
+        output_index as f64 / self.resampler.ratio()
     }
 
     pub fn input_rate(&self) -> f64 {
@@ -280,10 +322,13 @@ impl StreamingResampler {
         self.resampler.filter_params()
     }
 
+    /// Algorithmic latency in input frames, equal to the filter radius.
     pub fn latency_frames(&self) -> usize {
         self.resampler.filter.radius()
     }
 
+    /// Number of output frames the next `process_into` call will emit for an
+    /// input of `input_frames` frames.
     pub fn output_frames_for(&self, input_frames: usize) -> usize {
         if input_frames == 0 || self.finished {
             return 0;
@@ -291,21 +336,22 @@ impl StreamingResampler {
 
         let total_frames = self.input_frames_received + input_frames;
         let lookahead = self.resampler.filter.radius() as f64;
-        let mut next_position = self.next_position;
-        let mut output_frames = 0;
+        let mut emitted = self.output_frames_emitted;
 
-        while next_position + lookahead < total_frames as f64 {
-            output_frames += 1;
-            next_position += self.step;
+        while self.position_for(emitted) + lookahead < total_frames as f64 {
+            emitted += 1;
         }
 
-        output_frames
+        emitted - self.output_frames_emitted
     }
 
+    /// `output_frames_for(input_frames) * channels` — output sample count to
+    /// allocate for the next `process_into` call.
     pub fn output_samples_for(&self, input_frames: usize) -> usize {
         self.output_frames_for(input_frames) * self.channels
     }
 
+    /// Number of output frames [`flush_into`](Self::flush_into) will emit.
     pub fn flush_frames(&self) -> usize {
         if self.finished || self.input_frames_received == 0 {
             return 0;
@@ -315,10 +361,17 @@ impl StreamingResampler {
         target_output_frames.saturating_sub(self.output_frames_emitted)
     }
 
+    /// `flush_frames() * channels` — output sample count to allocate for the
+    /// final flush.
     pub fn flush_samples(&self) -> usize {
         self.flush_frames() * self.channels
     }
 
+    /// Resample `input` into the front of `output`.
+    ///
+    /// Returns the number of whole frames written. `output` must hold at least
+    /// [`output_samples_for(input.len() / channels)`](Self::output_samples_for)
+    /// samples.
     pub fn process_into(
         &mut self,
         input: &[f32],
@@ -364,8 +417,10 @@ impl StreamingResampler {
             }
         };
 
-        while self.next_position + lookahead < total_frames as f64 {
-            let (base, coeffs) = self.resampler.phase_for_position(self.next_position);
+        while self.position_for(self.output_frames_emitted) + lookahead < total_frames as f64 {
+            let (base, coeffs) = self
+                .resampler
+                .phase_for_position(self.position_for(self.output_frames_emitted));
             let start = written_frames * self.channels;
             let end = start + self.channels;
             let output_frame = &mut output[start..end];
@@ -400,13 +455,14 @@ impl StreamingResampler {
 
             written_frames += 1;
             self.output_frames_emitted += 1;
-            self.next_position += self.step;
         }
 
         self.trim_history();
         Ok(written_frames)
     }
 
+    /// Emit the stream tail after the last input chunk. Marks the resampler
+    /// finished; call [`reset`](Self::reset) to reuse it.
     pub fn flush_into(&mut self, output: &mut [f32]) -> Result<usize, ResampleError> {
         let output_capacity_frames = self.validate_output_buffer(output)?;
         let required_output_frames = self.flush_frames();
@@ -436,7 +492,9 @@ impl StreamingResampler {
         };
 
         for frame_index in 0..required_output_frames {
-            let (base, coeffs) = self.resampler.phase_for_position(self.next_position);
+            let (base, coeffs) = self
+                .resampler
+                .phase_for_position(self.position_for(self.output_frames_emitted));
             let start = frame_index * self.channels;
             let end = start + self.channels;
             let output_frame = &mut output[start..end];
@@ -470,15 +528,14 @@ impl StreamingResampler {
             }
 
             self.output_frames_emitted += 1;
-            self.next_position += self.step;
         }
 
         self.finished = true;
         Ok(required_output_frames)
     }
 
+    /// Clear all history and counters, returning the resampler to a fresh state.
     pub fn reset(&mut self) {
-        self.next_position = 0.0;
         self.input_frames_received = 0;
         self.output_frames_emitted = 0;
         self.history_start_frame = 0;
@@ -487,7 +544,7 @@ impl StreamingResampler {
     }
 
     fn validate_interleaved_buffer(&self, buffer: &[f32]) -> Result<usize, ResampleError> {
-        if buffer.len() % self.channels != 0 {
+        if !buffer.len().is_multiple_of(self.channels) {
             return Err(ResampleError::BufferError(
                 "interleaved input length must be divisible by channel count".into(),
             ));
@@ -497,7 +554,7 @@ impl StreamingResampler {
     }
 
     fn validate_output_buffer(&self, buffer: &[f32]) -> Result<usize, ResampleError> {
-        if buffer.len() % self.channels != 0 {
+        if !buffer.len().is_multiple_of(self.channels) {
             return Err(ResampleError::BufferError(
                 "output buffer length must be divisible by channel count".into(),
             ));
@@ -511,7 +568,9 @@ impl StreamingResampler {
             return;
         }
 
-        let keep_from = (self.next_position.floor().max(0.0) as usize)
+        // Position of the next output sample to be emitted.
+        let next_position = self.position_for(self.output_frames_emitted);
+        let keep_from = (next_position.floor().max(0.0) as usize)
             .saturating_sub(self.resampler.filter.radius());
         if keep_from <= self.history_start_frame {
             return;
@@ -570,14 +629,14 @@ fn convolve_interleaved_scalar(
     }
 }
 
-fn history_frame<'a>(
-    history: &'a [f32],
+fn history_frame(
+    history: &[f32],
     history_start_frame: usize,
     total_frames: usize,
     channels: usize,
     frame_index: isize,
     allow_future_edge: bool,
-) -> Result<&'a [f32], ResampleError> {
+) -> Result<&[f32], ResampleError> {
     if history.is_empty() {
         return Err(ResampleError::BufferError(
             "streaming resampler has no input history".into(),
@@ -613,6 +672,7 @@ fn history_frame<'a>(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn convolve_history_scalar(
     output: &mut [f32],
     history: &[f32],
@@ -667,6 +727,7 @@ unsafe fn convolve_stereo_offline_sse2(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[allow(clippy::too_many_arguments)]
 #[target_feature(enable = "sse2")]
 unsafe fn convolve_stereo_history_sse2(
     output: &mut [f32],
