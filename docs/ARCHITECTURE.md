@@ -8,10 +8,10 @@
 | `sinc.rs` | `f64` and `f32` sinc helpers and kernel builders |
 | `window.rs` | `f64` and `f32` window generation |
 | `filter.rs` | `f64` and `f32` FIR kernel generation |
-| `io.rs` | Offline WAV decoding, encoding, and audio buffers |
+| `io.rs` | Offline WAV/FLAC decoding, WAV encoding, and `AudioBuffer` |
 | `polyphase.rs` | Polyphase sinc filter-bank construction and phase lookup |
 | `resampler.rs` | Offline and streaming polyphase sinc resamplers |
-| `error.rs` | Error types (InvalidSampleRate, InvalidRatio) |
+| `error.rs` | Error types (InvalidSampleRate, InvalidRatio, Flac, ...) |
 | `utils.rs` | Small shared validation helpers |
 
 ## Data Flow
@@ -60,7 +60,7 @@ The `resample()` method performs polyphase sinc interpolation:
 
 The `resample_interleaved()` method keeps interleaved buffers in place instead of deinterleaving them first. For stereo input on `x86` and `x86_64`, it uses an SSE2 fast path to accumulate both channels together through the FIR loop.
 
-`StreamingResampler` shares the same polyphase model, buffers the history needed for the filter radius, and flushes the remaining tail with last-frame edge extension so chunked processing matches offline behavior.
+`StreamingResampler` shares the same polyphase model, buffers the history needed for the filter radius, and flushes the remaining tail with last-frame edge extension so chunked processing matches offline behavior. Output positions are derived from the output-frame counter as `index / ratio` — the same expression the offline path uses — so streaming output is bit-for-bit identical to the offline resampler regardless of how the input is chunked.
 
 ### Polyphase Filter Bank
 
@@ -71,9 +71,13 @@ The `polyphase.rs` module contains:
 
 ## Offline vs Real-time
 
-**Offline (current)**: Processes the full input buffer and returns a new `Vec<f32>`. `io.rs` handles WAV decode to normalized interleaved `AudioBuffer` values and writes 32-bit float WAV output.
+**Offline (current)**: Processes the full input buffer and returns a new `Vec<f32>`. `io.rs` handles WAV and FLAC decode to normalized interleaved `AudioBuffer` values (`read_audio` dispatches by extension) and writes 32-bit float WAV output.
 
 **Real-time (current)**: `StreamingResampler` keeps enough input history to cover the filter radius plus a fractional read position. The caller provides reusable output buffers via `process_into()` and finishes the stream with `flush_into()`.
+
+## Feature Flags
+
+- `flac` (default): enables FLAC input via the pure-Rust `claxon` decoder and the `read_flac`/`read_audio` helpers. Disable with `default-features = false` for a WAV-only build.
 
 ## Design Decisions
 

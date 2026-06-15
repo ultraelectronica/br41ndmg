@@ -11,7 +11,7 @@ br41ndmg/
 │   ├── sinc.rs             # f64/f32 sinc helpers and kernel builders
 │   ├── window.rs           # f64/f32 Hann, Hamming, Blackman, Kaiser
 │   ├── filter.rs           # f64/f32 FIR kernel generation and normalization
-│   ├── io.rs               # WAV read/write and AudioBuffer helpers
+│   ├── io.rs               # WAV/FLAC read, WAV write, and AudioBuffer helpers
 │   ├── polyphase.rs        # Polyphase sinc filter-bank builder and phase lookup
 │   ├── resampler.rs        # Offline and streaming polyphase resamplers
 │   ├── error.rs            # Error enum with thiserror
@@ -25,21 +25,24 @@ br41ndmg/
 │   ├── impulse.rs          # Impulse identity and symmetry checks
 │   ├── sine.rs             # Sine round-trip and passband RMS checks
 │   ├── sweep.rs            # Sweep attenuation regression checks
-│   └── quality_tests.rs    # DC, alias suppression, and stereo quality checks
+│   ├── quality_tests.rs    # DC, alias suppression, and stereo quality checks
+│   └── real_audio.rs       # End-to-end tests on test_subjects/*.flac (skip if absent)
 │
 ├── benches/
 │   └── resampler_bench.rs  # Criterion mono/stereo resampling benches
 │
 ├── examples/
-│   ├── resample_file.rs    # WAV in → WAV out via hound
+│   ├── resample_file.rs    # .wav/.flac in → .wav out
 │   └── tone_resample.rs    # Synthetic sine written as WAV output
 │
 └── docs/
+    ├── USAGE.md            # End-user guide and recipes
     ├── ARCHITECTURE.md     # Module map, data flow
     ├── DSP_NOTES.md        # Sinc math, polyphase theory
+    ├── REALTIME.md         # Callback rules, latency tradeoffs
     ├── TEST_PLAN.md        # Signals, thresholds, and checked-in coverage
     ├── BENCHMARK_PLAN.md   # Current coverage and next perf work
     ├── REQUIREMENTS.md     # Scope, capabilities, non-goals
     ├── PERFORMANCE.md      # Current performance notes
-    └── REALTIME.md         # Callback rules, latency tradeoffs
+    └── PROJECT_GOAL.md     # Phase-by-phase build plan
 ```
