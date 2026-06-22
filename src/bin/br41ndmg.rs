@@ -25,7 +25,7 @@ fn usage(program: &str) -> ! {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args();
-    let program = args.next().unwrap_or_else(|| "resample_file".into());
+    let program = args.next().unwrap_or_else(|| "br41ndmg".into());
     let (input, output_target, output_rate) = match (args.next(), args.next(), args.next()) {
         (Some(i), Some(o), Some(r)) => (i, o, r.parse::<u32>()?),
         _ => usage(&program),
