@@ -115,11 +115,11 @@ write_wav("song_48k.wav", &output)?;
 internally. Construct your own `Resampler` if you want to reuse it across many
 buffers or tune the filter.
 
-### Command-line example
+### Command-line tool
 
-The `resample_file` example takes `<input> <output> <target_sample_rate>`.
-Both single files and whole directories are supported, and the output target
-decides the filename:
+Install the CLI from crates.io with `cargo install br41ndmg`, then run `br41ndmg
+<input> <output> <target_sample_rate>`. Both single files and whole directories
+are supported, and the output target decides the filename:
 
 - If `<output>` ends in `.wav` (and is not an existing directory), it is used
   verbatim as the output path.
@@ -130,14 +130,16 @@ decides the filename:
 
 ```bash
 # Single file to an explicit path
-cargo run --release --example resample_file -- input.flac output.wav 48000
+br41ndmg input.flac output.wav 48000
 
 # Single file into a directory (auto-named input_48000Hz.wav)
-cargo run --release --example resample_file -- input.flac out_dir/ 48000
+br41ndmg input.flac out_dir/ 48000
 
 # Batch: resample every song in a folder into out_dir/
-cargo run --release --example resample_file -- test_subjects/ out_dir/ 48000
+br41ndmg test_subjects/ out_dir/ 48000
 ```
+
+From a source checkout, use `cargo run --release --bin br41ndmg -- <args>`.
 
 ---
 
@@ -265,10 +267,10 @@ with `?` and `Box<dyn Error>` as in the examples.
 
 ```bash
 # Resample a file (WAV or FLAC in, WAV out)
-cargo run --release --example resample_file -- input.flac output.wav 48000
+br41ndmg input.flac output.wav 48000
 
 # Batch-resample a whole folder (auto-named <stem>_<rate>Hz.wav)
-cargo run --release --example resample_file -- test_subjects/ out_dir/ 48000
+br41ndmg test_subjects/ out_dir/ 48000
 
 # Generate and resample a synthetic tone
 cargo run --release --example tone_resample -- tone.wav

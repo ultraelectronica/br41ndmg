@@ -172,6 +172,8 @@ br41ndmg/
 │   ├── polyphase.rs
 │   ├── resampler.rs
 │   └── error.rs
+├── src/bin/
+│   └── br41ndmg.rs         # CLI (installed via `cargo install`)
 ├── tests/
 │   ├── impulse.rs
 │   ├── sine.rs
@@ -179,7 +181,6 @@ br41ndmg/
 ├── benches/
 │   └── resampler_bench.rs
 ├── examples/
-│   ├── resample_file.rs
 │   └── tone_resample.rs
 ├── docs/
 │   ├── ARCHITECTURE.md
