@@ -15,7 +15,9 @@ br41ndmg/
 │   ├── polyphase.rs        # Polyphase sinc filter-bank builder and phase lookup
 │   ├── resampler.rs        # Offline and streaming polyphase resamplers
 │   ├── error.rs            # Error enum with thiserror
-│   └── utils.rs            # Shared validation helpers
+│   ├── utils.rs            # Shared validation helpers
+│   └── bin/
+│       └── br41ndmg.rs     # CLI: .wav/.flac in → .wav out (`cargo install`)
 │
 ├── tests/
 │   ├── file_io.rs          # WAV normalization, write, and layout tests
@@ -32,7 +34,6 @@ br41ndmg/
 │   └── resampler_bench.rs  # Criterion mono/stereo resampling benches
 │
 ├── examples/
-│   ├── resample_file.rs    # .wav/.flac in → .wav out
 │   └── tone_resample.rs    # Synthetic sine written as WAV output
 │
 └── docs/

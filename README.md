@@ -95,21 +95,29 @@ let written_frames = stream.process_into(&input_chunk, &mut output)?;
 let ready = &output[..written_frames * stream.channels()];
 ```
 
-### Command-Line Example
+### Command-Line Tool
+
+Install the prebuilt CLI from crates.io:
+
+```bash
+cargo install br41ndmg
+```
 
 Resample a file, a file into a directory (auto-named `<stem>_<rate>Hz.wav`),
 or a whole folder at once:
 
 ```bash
 # single file -> explicit output path
-cargo run --release --example resample_file -- input.flac output.wav 48000
+br41ndmg input.flac output.wav 48000
 
 # single file -> directory (auto-named)
-cargo run --release --example resample_file -- input.flac out_dir/ 48000
+br41ndmg input.flac out_dir/ 48000
 
 # batch: every .wav/.flac in a folder -> out_dir/
-cargo run --release --example resample_file -- test_subjects/ out_dir/ 48000
+br41ndmg test_subjects/ out_dir/ 48000
 ```
+
+From a source checkout, use `cargo run --release --bin br41ndmg -- <args>` in place of `br41ndmg`.
 
 ## Roadmap
 
