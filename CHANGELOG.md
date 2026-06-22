@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-22
+
+### Added
+- `br41ndmg` command-line binary, installable via `cargo install br41ndmg`.
+  Resamples a single file or a whole folder of `.wav`/`.flac` inputs to a
+  target sample rate (promoted from the former `resample_file` example).
+
+### Changed
+- Republished so the crates.io `repository` link resolves to
+  `ultraelectronica/br41ndmg` (the manifest was already correct in 0.1.0,
+  but the published `0.1.0` carried a stale `anomalyco` URL).
+
 ## [0.1.0] - 2026-06-16
 
 ### Added
