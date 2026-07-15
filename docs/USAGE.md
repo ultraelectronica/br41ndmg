@@ -117,9 +117,44 @@ buffers or tune the filter.
 
 ### Command-line tool
 
-Install the CLI from crates.io with `cargo install br41ndmg`, then run `br41ndmg
-<input> <output> <target_sample_rate>`. Both single files and whole directories
-are supported, and the output target decides the filename:
+The CLI ships in a separate package (`br41ndmg-cli`) but installs a binary
+named `br41ndmg`:
+
+```bash
+cargo install br41ndmg-cli
+```
+
+The tool has two modes: an **interactive file browser** and a **non-interactive
+three-argument** path.
+
+**Interactive mode** — run with no arguments, with a single directory, or with
+`-i`/`--interactive [dir]`:
+
+```bash
+br41ndmg                # browser, starts in the current directory
+br41ndmg test_subjects/  # browser, starting in that folder
+br41ndmg -i              # force interactive mode
+```
+
+In the browser:
+
+- `↑`/`↓` (or `j`/`k`) move the cursor.
+- `Enter` opens a directory or toggles a file's selection; `Space` toggles.
+- `u` goes up one directory level.
+- `a` selects every audio file in the current directory; `c` clears.
+- `p` proceeds to the settings screen (enabled once at least one file is
+  selected). There you choose a **target sample rate** (a list of common
+  presets, or "Custom…" to type your own) and an **output directory** (type it
+  or browse for it ncdu-style: `Enter`/`→` to open a folder, `←`/`u` to go up,
+  `m`/`Space` to use the current directory). Move between fields with
+  `Tab`/`↑`/`↓`, `Enter` to edit one, and `Enter` on **Start resampling** to
+  begin. A progress bar reports each file; large FLACs are resampled on a
+  background thread so the UI stays responsive.
+- `q`/`Esc` quits.
+
+**Non-interactive mode** — `br41ndmg <input> <output> <target_sample_rate>`.
+Both single files and whole directories are supported, and the output target
+decides the filename:
 
 - If `<output>` ends in `.wav` (and is not an existing directory), it is used
   verbatim as the output path.
