@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "br41ndmg-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "br41ndmg",
  "crossterm",
