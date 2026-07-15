@@ -8,6 +8,10 @@ repository = "https://github.com/ultraelectronica/br41ndmg"
 keywords = ["audio", "dsp", "resampling", "resampler", "polyphase"]
 categories = ["multimedia::audio", "algorithms"]
 
+[workspace]
+members = ["cli"]
+resolver = "2"
+
 [features]
 default = ["flac"]
 # FLAC decoding support via the pure-Rust claxon decoder.

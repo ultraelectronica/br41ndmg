@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+- Interactive terminal file browser for the CLI: navigate directories, mark
+  `.wav`/`.flac` files, set a target rate and output directory, and watch a
+  per-file progress bar. Large files are resampled on a background thread so the
+  UI stays responsive. Run `br41ndmg` with no arguments, a directory, or
+  `-i`/`--interactive` to open it.
+
+### Changed
+- The command-line tool moved into its own package, `br41ndmg-cli` (the binary
+  is still named `br41ndmg`). Install it with
+  `cargo install br41ndmg-cli`. The library package no longer ships a binary.
+- The three-argument form `br41ndmg <input> <output> <rate>` is unchanged and
+  remains the non-interactive path.
+
 ## [0.1.1] - 2026-06-22
 
 ### Added
