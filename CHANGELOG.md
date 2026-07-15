@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-16
+
 ### Added
 - Interactive terminal file browser for the CLI: navigate directories, mark
   `.wav`/`.flac` files, set a target rate and output directory, and watch a
