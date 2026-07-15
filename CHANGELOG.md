@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-16
+
+### Added
+- `README.md` for the `br41ndmg-cli` crate so the crates.io listing shows a
+  description instead of a bare page.
+
 ## [0.2.0] - 2026-07-16
 
 ### Added
