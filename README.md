@@ -97,25 +97,40 @@ let ready = &output[..written_frames * stream.channels()];
 
 ### Command-Line Tool
 
-Install the prebuilt CLI from crates.io:
+The CLI lives in a separate package but installs a binary still named `br41ndmg`:
 
 ```bash
-cargo install br41ndmg
+cargo install br41ndmg-cli
 ```
 
-Resample a file, a file into a directory (auto-named `<stem>_<rate>Hz.wav`),
-or a whole folder at once:
+Run with no arguments (or a directory, or `-i`/`--interactive`) to open the
+interactive file browser, or pass three positional arguments for the
+non-interactive path:
 
 ```bash
-# single file -> explicit output path
+# interactive browser, starts in the current directory
+br41ndmg
+
+# interactive browser, starting in a given folder
+br41ndmg test_subjects/
+
+# force interactive mode explicitly
+br41ndmg -i
+
+# non-interactive: single file -> explicit output path
 br41ndmg input.flac output.wav 48000
 
-# single file -> directory (auto-named)
+# non-interactive: single file -> directory (auto-named <stem>_<rate>Hz.wav)
 br41ndmg input.flac out_dir/ 48000
 
-# batch: every .wav/.flac in a folder -> out_dir/
+# non-interactive: batch every .wav/.flac in a folder -> out_dir/
 br41ndmg test_subjects/ out_dir/ 48000
 ```
+
+In the browser, navigate with arrow keys (or `j`/`k`), `Enter`/`Space` to open
+or toggle files, `a` to select all, `c` to clear, and `p` to proceed. On the
+settings screen pick a target rate from common presets (or type a custom one)
+and choose the output directory by typing or browsing for it, then start.
 
 From a source checkout, use `cargo run --release --bin br41ndmg -- <args>` in place of `br41ndmg`.
 
