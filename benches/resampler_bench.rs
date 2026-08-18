@@ -75,8 +75,7 @@ fn bench_streaming(c: &mut Criterion) {
     let stereo = generate_signal(frames, channels);
     let chunk_frames = 512;
     let mut stream = StreamingResampler::new(44_100.0, 48_000.0, channels).unwrap();
-    // ponytail: worst-case per-chunk output is ceil(chunk * ratio) + phase
-    // wobble; 2x chunk frames covers it without stateful sizing math
+    // worst-case per-chunk output is ceil(chunk * ratio) + phase, wobble; 2x chunk frames covers it without stateful sizing math
     let mut output = vec![0.0f32; chunk_frames * 2 * channels];
     let mut group = c.benchmark_group("streaming");
 
