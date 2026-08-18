@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-18
+
 ### Added
+- `README.md` for the `br41ndmg-cli` crate so the crates.io listing shows a
+  description instead of a bare page.
 - Expanded criterion benchmarks: 48 kHz -> 44.1 kHz downsampling (mono and
   stereo), a heavy 512-phase/95-tap filter case, streaming stereo in
   512-frame chunks, and filter bank setup cost.
@@ -11,12 +15,6 @@
 - Checked-in performance baseline
   `benchmarks/baseline/x86_64_linux.csv` and rewritten profiling notes in
   `docs/PERFORMANCE.md` with measured throughputs and setup costs.
-
-## [0.2.1] - 2026-07-16
-
-### Added
-- `README.md` for the `br41ndmg-cli` crate so the crates.io listing shows a
-  description instead of a bare page.
 
 ## [0.2.0] - 2026-07-16
 
