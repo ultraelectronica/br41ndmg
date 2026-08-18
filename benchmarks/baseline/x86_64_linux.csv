@@ -1,0 +1,13 @@
+# generated 2026-08-18 by benches/baseline_csv.py
+# cpu: AMD Ryzen 7 7735HS with Radeon Graphics
+# rustc: rustc 1.95.0 (59807616e 2026-04-14)
+# command: cargo bench --bench resampler_bench
+benchmark,elements_per_iter,mean_ns,median_ns,mean_ci_lower_ns,mean_ci_upper_ns,std_dev_ns
+filter_setup/default_phases_256_taps_63,,438018,437491,437794,438257,1189
+filter_setup/phases_512_taps_95,,1317739,1315198,1316393,1319523,8070
+resample/mono_44100_to_48000,44100,2841288,2840412,2840584,2842054,3805
+resample/mono_48000_to_44100,44100,2349083,2348960,2348409,2349797,3554
+resample/stereo_44100_to_48000,88200,2995318,2994611,2994615,2996155,3946
+resample/stereo_44100_to_48000_phases_512_taps_95,88200,4049257,4048968,4048630,4049933,3328
+resample/stereo_48000_to_44100,88200,2477160,2478620,2476306,2477947,4210
+streaming/stereo_44100_to_48000_chunks_512,88200,9886365,9539154,9772614,10010047,609602

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- Expanded criterion benchmarks: 48 kHz -> 44.1 kHz downsampling (mono and
+  stereo), a heavy 512-phase/95-tap filter case, streaming stereo in
+  512-frame chunks, and filter bank setup cost.
+- `benches/baseline_csv.py` to regenerate a benchmark baseline CSV from a
+  criterion run.
+- Checked-in performance baseline
+  `benchmarks/baseline/x86_64_linux.csv` and rewritten profiling notes in
+  `docs/PERFORMANCE.md` with measured throughputs and setup costs.
+
 ## [0.2.1] - 2026-07-16
 
 ### Added
