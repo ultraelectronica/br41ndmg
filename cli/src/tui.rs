@@ -456,10 +456,7 @@ impl App {
         self.progress_rx = Some(rx);
         self.mode = Mode::Progress;
 
-        // ponytail: per-file work on a background thread. We split each file
-        // into decode/resample/write phases so the UI can report what is
-        // happening (and the spinner proves liveness) even on one huge FLAC.
-        // No mid-file cancellation — add a shared AtomicBool to stop cleanly.
+        // ponytail: bg thread, per-phase progress on huge files. No mid-file cancel — AtomicBool if needed.
         std::thread::spawn(move || {
             let _ = std::fs::create_dir_all(&output_dir);
             let total = inputs.len();
