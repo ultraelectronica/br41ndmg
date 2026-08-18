@@ -26,7 +26,7 @@ A Rust audio resampling library with a polyphase sinc engine, offline and stream
 - Streaming output is bit-exact with the offline path regardless of input chunking
 - DSP validation tests for impulse, sine, sweep, DC, and alias-suppression regressions
 - Real-audio integration tests driven by `test_subjects/` FLAC fixtures
-- Criterion benchmarks for mono and stereo 44.1 kHz → 48 kHz conversion
+- Criterion benchmarks for up/downsampling, streaming chunks, and filter setup, with a checked-in baseline CSV in `benchmarks/baseline/`
 
 ## Quick Start
 
@@ -145,7 +145,7 @@ From a source checkout, use `cargo run --release --bin br41ndmg -- <args>` in pl
 - [x] DSP quality validation suite expansion
 - [x] Configurable polyphase filter parameters
 - [x] Bit-exact streaming/offline equivalence
-- [ ] Expanded performance baselines and profiling data
+- [x] Expanded performance baselines and profiling data
 
 ## Documentation
 
