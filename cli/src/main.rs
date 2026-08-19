@@ -19,6 +19,9 @@ fn usage(program: &str) -> ! {
     eprintln!("  {program} <input> <output.wav|out_dir> <rate>");
     eprintln!("  {program} <input_dir> <output_dir> <rate>   (batch)");
     eprintln!();
+    eprintln!("Options:");
+    eprintln!("  --no-metadata    strip song tags instead of keeping them");
+    eprintln!();
     eprintln!("Run with no arguments, or pass a directory, to open the interactive");
     eprintln!("file browser. Pass an input, an output target, and a sample rate for");
     eprintln!("the non-interactive path.");
@@ -29,6 +32,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args();
     let program = args.next().unwrap_or_else(|| "br41ndmg".into());
     let argv: Vec<String> = args.collect();
+    let keep_metadata = !argv.iter().any(|a| a == "--no-metadata");
+    let argv: Vec<String> = argv.into_iter().filter(|a| a != "--no-metadata").collect();
 
     // Explicit interactive flag: -i / --interactive [dir]
     if argv.iter().any(|a| a == "-i" || a == "--interactive") {
@@ -47,10 +52,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let output_target = &argv[1];
             let output_rate = argv[2].parse::<u32>()?;
             if Path::new(input).is_dir() {
-                run_batch(input, output_target, output_rate)?;
+                run_batch(input, output_target, output_rate, keep_metadata)?;
             } else {
                 let out = resolve_output(input, output_target, output_rate)?;
-                run_single(input, &out, output_rate)?;
+                run_single(input, &out, output_rate, keep_metadata)?;
             }
             Ok(())
         }
