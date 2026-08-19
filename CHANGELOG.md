@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Tag preservation: `br41ndmg::tags` reads common tags from FLAC (Vorbis
+  comments) and WAV (LIST/INFO) inputs and writes them into the output WAV as a
+  LIST/INFO chunk. The CLI and TUI keep tags by default; pass `--no-metadata`
+  (or press `m` in the browser settings screen) to strip them.
+
 ## [0.2.1] - 2026-08-18
 
 ### Added
