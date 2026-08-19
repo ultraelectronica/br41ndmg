@@ -1,5 +1,6 @@
 use crate::resample_job::{BatchOutcome, auto_output_name, is_audio_file};
 use br41ndmg::io::{read_audio, write_wav};
+use br41ndmg::tags::{read_tags, write_wav_with_tags};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
@@ -208,6 +209,7 @@ struct App {
     selected: BTreeSet<PathBuf>,
     rate_input: String,
     dir_input: String,
+    keep_metadata: bool,
     input_focus: usize,
     input_error: Option<String>,
     rate_list_state: ListState,
@@ -233,6 +235,7 @@ impl App {
             selected: BTreeSet::new(),
             rate_input: "48000".into(),
             dir_input: "./resampled".into(),
+            keep_metadata: true,
             input_focus: 0,
             input_error: None,
             rate_list_state: ListState::default(),
@@ -294,12 +297,14 @@ impl App {
 
     fn handle_input(&mut self, code: KeyCode) -> Action {
         match code {
-            KeyCode::Tab | KeyCode::Down => self.input_focus = (self.input_focus + 1) % 3,
-            KeyCode::Up => self.input_focus = (self.input_focus + 2) % 3,
+            KeyCode::Tab | KeyCode::Down => self.input_focus = (self.input_focus + 1) % 4,
+            KeyCode::Up => self.input_focus = (self.input_focus + 3) % 4,
+            KeyCode::Char('m') => self.keep_metadata = !self.keep_metadata,
             KeyCode::Esc => self.mode = Mode::Browse,
             KeyCode::Enter => match self.input_focus {
                 0 => self.open_rate_picker(),
                 1 => self.open_dir_picker(),
+                2 => self.keep_metadata = !self.keep_metadata,
                 _ => self.confirm(),
             },
             _ => {}
@@ -457,6 +462,7 @@ impl App {
         self.mode = Mode::Progress;
 
         // ponytail: bg thread, per-phase progress on huge files. No mid-file cancel — AtomicBool if needed.
+        let keep_metadata = self.keep_metadata;
         std::thread::spawn(move || {
             let _ = std::fs::create_dir_all(&output_dir);
             let total = inputs.len();
@@ -499,7 +505,12 @@ impl App {
                     phase: Phase::Write,
                     path: out.clone(),
                 });
-                match write_wav(&out, &result) {
+                let write_result = if keep_metadata {
+                    write_wav_with_tags(&out, &result, &read_tags(input))
+                } else {
+                    write_wav(&out, &result)
+                };
+                match write_result {
                     Ok(()) => ok += 1,
                     Err(e) => failed.push((input.clone(), e.to_string())),
                 }
@@ -643,7 +654,7 @@ impl App {
             Mode::Browse => {
                 "↑/↓ move  Enter open/toggle  Space toggle  u up  a all  c clear  p process  q quit"
             }
-            Mode::Input => "Tab/↑↓ move  Enter change  Esc back",
+            Mode::Input => "Tab/↑↓ move  Enter change  m toggle metadata  Esc back",
             Mode::PickRate => "↑/↓ choose  Enter select  Esc back",
             Mode::PickDir => "↑/↓ move  Enter/→ open  ←/u up  m/Space use  Esc cancel",
             Mode::Progress => "resampling...",
@@ -716,14 +727,27 @@ impl App {
             }),
         );
         lines.push(Line::from(""));
+        lines.push(
+            Line::from(format!(
+                " {} Keep metadata …… {}",
+                marker(self.input_focus == 2),
+                if self.keep_metadata { "on" } else { "off" }
+            ))
+            .style(if self.input_focus == 2 {
+                focus_style
+            } else {
+                Style::default()
+            }),
+        );
         lines.push(Line::from(""));
-        let start = if self.input_focus == 2 {
+        lines.push(Line::from(""));
+        let start = if self.input_focus == 3 {
             "▶  Start resampling  ◀"
         } else {
             "   Start resampling   "
         };
         lines.push(
-            Line::from(format!("        {start}")).style(if self.input_focus == 2 {
+            Line::from(format!("        {start}")).style(if self.input_focus == 3 {
                 focus_style
             } else {
                 Style::default()
