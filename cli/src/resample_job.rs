@@ -1,4 +1,5 @@
 use br41ndmg::io::{read_audio, write_wav};
+use br41ndmg::tags::{read_tags, write_wav_with_tags};
 use std::path::{Path, PathBuf};
 
 pub fn is_audio_extension(ext: &str) -> bool {
@@ -47,16 +48,22 @@ pub fn list_audio_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-/// Read, resample, and write a single file. Performs no printing so callers
-/// (CLI or TUI) own their own reporting.
+/// Read, resample, and write a single file, preserving source tags when
+/// `keep_metadata` is set. Performs no printing so callers (CLI or TUI) own
+/// their own reporting.
 pub fn resample_file(
     input: &Path,
     output: &Path,
     rate: u32,
+    keep_metadata: bool,
 ) -> Result<(), br41ndmg::ResampleError> {
     let buf = read_audio(input)?;
     let result = buf.resample_to(rate)?;
-    write_wav(output, &result)
+    if keep_metadata {
+        write_wav_with_tags(output, &result, &read_tags(input))
+    } else {
+        write_wav(output, &result)
+    }
 }
 
 /// Outcome of processing a batch of inputs.
@@ -77,6 +84,7 @@ pub fn process_files<F: FnMut(usize, usize, &Path)>(
     inputs: &[PathBuf],
     output_dir: &Path,
     rate: u32,
+    keep_metadata: bool,
     mut on_progress: F,
 ) -> BatchOutcome {
     let _ = std::fs::create_dir_all(output_dir);
@@ -85,7 +93,7 @@ pub fn process_files<F: FnMut(usize, usize, &Path)>(
     for (index, input) in inputs.iter().enumerate() {
         on_progress(index, total, input);
         let out = output_dir.join(auto_output_name(input, rate));
-        if let Err(error) = resample_file(input, &out, rate) {
+        if let Err(error) = resample_file(input, &out, rate, keep_metadata) {
             failed.push((input.clone(), error.to_string()));
         }
     }
@@ -96,10 +104,19 @@ pub fn process_files<F: FnMut(usize, usize, &Path)>(
 }
 
 /// Legacy CLI single-file path: resample and print a one-line summary.
-pub fn run_single(input: &str, output: &Path, rate: u32) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_single(
+    input: &str,
+    output: &Path,
+    rate: u32,
+    keep_metadata: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let buf = read_audio(input)?;
     let result = buf.resample_to(rate)?;
-    write_wav(output, &result)?;
+    if keep_metadata {
+        write_wav_with_tags(output, &result, &read_tags(input))?;
+    } else {
+        write_wav(output, &result)?;
+    }
     println!(
         "{} -> {}: {} frames @ {} Hz to {} frames @ {} Hz",
         input,
@@ -118,6 +135,7 @@ pub fn run_batch(
     input_dir: &str,
     output_dir: &str,
     rate: u32,
+    keep_metadata: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = Path::new(output_dir);
     std::fs::create_dir_all(out_dir)?;
@@ -128,9 +146,15 @@ pub fn run_batch(
         return Ok(());
     }
 
-    let outcome = process_files(&entries, out_dir, rate, |index, total, path| {
-        println!("[{}/{}] {}", index + 1, total, path.display());
-    });
+    let outcome = process_files(
+        &entries,
+        out_dir,
+        rate,
+        keep_metadata,
+        |index, total, path| {
+            println!("[{}/{}] {}", index + 1, total, path.display());
+        },
+    );
 
     for (path, error) in &outcome.failed {
         eprintln!("failed {}: {error}", path.display());

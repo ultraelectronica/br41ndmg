@@ -17,6 +17,8 @@ pub enum ResampleError {
     BufferError(String),
     #[error("Unsupported WAV format: {0}")]
     UnsupportedWavFormat(String),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
     #[error("WAV error: {0}")]
     Wav(#[from] hound::Error),
     /// Decoding error from an optional codec (currently FLAC via claxon).

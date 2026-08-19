@@ -134,6 +134,70 @@ pub fn write_wav<P: AsRef<Path>>(path: P, buffer: &AudioBuffer) -> Result<(), Re
     Ok(())
 }
 
+/// Header-level description of an audio file, without decoding samples.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileInfo {
+    /// Decoder that would handle the file: `"wav"` or `"flac"`.
+    pub format: &'static str,
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub bits_per_sample: u16,
+    /// Total frames, or `None` when the header does not state a duration.
+    pub frames: Option<u64>,
+}
+
+/// Probe a `.wav` or `.flac` header for [`FileInfo`].
+///
+/// Only metadata is read; no samples are decoded. This makes it cheap enough
+/// for interactive cursors. Unknown extensions return
+/// [`ResampleError::UnsupportedWavFormat`], mirroring [`read_audio`].
+pub fn probe_audio<P: AsRef<Path>>(path: P) -> Result<FileInfo, ResampleError> {
+    let path = path.as_ref();
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("wav") => probe_wav(path),
+        #[cfg(feature = "flac")]
+        Some("flac") => probe_flac(path),
+        other => Err(ResampleError::UnsupportedWavFormat(format!(
+            "no decoder for extension {other:?}; expected .wav or .flac"
+        ))),
+    }
+}
+
+fn probe_wav(path: &Path) -> Result<FileInfo, ResampleError> {
+    let reader = WavReader::open(path)?;
+    let spec = reader.spec();
+    Ok(FileInfo {
+        format: "wav",
+        sample_rate: spec.sample_rate,
+        channels: spec.channels,
+        bits_per_sample: spec.bits_per_sample,
+        frames: Some(u64::from(reader.duration())),
+    })
+}
+
+#[cfg(feature = "flac")]
+fn probe_flac(path: &Path) -> Result<FileInfo, ResampleError> {
+    let reader = claxon::FlacReader::open(path)?;
+    let info = reader.streaminfo();
+    Ok(FileInfo {
+        format: "flac",
+        sample_rate: info.sample_rate,
+        channels: u16::try_from(info.channels).map_err(|_| {
+            ResampleError::UnsupportedWavFormat(format!(
+                "FLAC channel count {} exceeds u16",
+                info.channels
+            ))
+        })?,
+        bits_per_sample: u16::try_from(info.bits_per_sample).map_err(|_| {
+            ResampleError::UnsupportedWavFormat(format!(
+                "FLAC bit depth {} exceeds u16",
+                info.bits_per_sample
+            ))
+        })?,
+        frames: info.samples,
+    })
+}
+
 /// Read any supported audio file into a normalized [`AudioBuffer`].
 ///
 /// The decoder is selected from the file extension: `.wav` uses [`read_wav`]

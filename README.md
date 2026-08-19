@@ -22,6 +22,8 @@ A Rust audio resampling library with a polyphase sinc engine, offline and stream
 - WAV input: 8/16/24/32-bit PCM and 32-bit float
 - FLAC input: 4–32-bit samples (default `flac` feature, pure-Rust decoder)
 - WAV output: 32-bit float
+- Tag preservation: common FLAC/Vorbis comments and WAV LIST/INFO tags are carried across to output WAVs
+- Header probing (`probe_audio`) and, in the TUI, a file info pane plus a scrollable/zoomable spectrogram view (`v`/`i`)
 - SSE2 stereo fast path on `x86` and `x86_64`
 - Streaming output is bit-exact with the offline path regardless of input chunking
 - DSP validation tests for impulse, sine, sweep, DC, and alias-suppression regressions
@@ -125,12 +127,16 @@ br41ndmg input.flac out_dir/ 48000
 
 # non-interactive: batch every .wav/.flac in a folder -> out_dir/
 br41ndmg test_subjects/ out_dir/ 48000
+
+# any non-interactive form: strip tags instead of keeping them
+br41ndmg input.flac output.wav 48000 --no-metadata
 ```
 
 In the browser, navigate with arrow keys (or `j`/`k`), `Enter`/`Space` to open
 or toggle files, `a` to select all, `c` to clear, and `p` to proceed. On the
-settings screen pick a target rate from common presets (or type a custom one)
-and choose the output directory by typing or browsing for it, then start.
+settings screen pick a target rate from common presets (or type a custom one),
+choose the output directory by typing or browsing for it, toggle tag keeping
+with `m` (on by default), then start.
 
 From a source checkout, use `cargo run --release --bin br41ndmg -- <args>` in place of `br41ndmg`.
 

@@ -1,5 +1,8 @@
 use crate::resample_job::{BatchOutcome, auto_output_name, is_audio_file};
-use br41ndmg::io::{read_audio, write_wav};
+use crate::spectrogram::Spectrogram;
+use crate::viewer::{Viewer, fmt_duration, fmt_size};
+use br41ndmg::io::{FileInfo, probe_audio, read_audio, write_wav};
+use br41ndmg::tags::{read_tags, write_wav_with_tags};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
@@ -13,7 +16,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Borders, Gauge, List, ListItem, ListState, Paragraph},
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -58,6 +61,7 @@ enum Mode {
     PickDir,
     Progress,
     Done,
+    View,
 }
 
 const RATE_PRESETS: [u32; 12] = [
@@ -208,6 +212,7 @@ struct App {
     selected: BTreeSet<PathBuf>,
     rate_input: String,
     dir_input: String,
+    keep_metadata: bool,
     input_focus: usize,
     input_error: Option<String>,
     rate_list_state: ListState,
@@ -223,6 +228,18 @@ struct App {
     progress_start: Option<Instant>,
     progress_outcome: Option<BatchOutcome>,
     progress_rx: Option<mpsc::Receiver<Msg>>,
+    viewer: Option<Viewer>,
+    view_rx: Option<mpsc::Receiver<(PathBuf, Result<Spectrogram, String>)>>,
+    view_start: Option<Instant>,
+    spectro_cache: HashMap<PathBuf, Result<Spectrogram, String>>,
+    info_pane: Option<InfoPane>,
+}
+
+/// Header probe of the browser cursor, for the side pane.
+struct InfoPane {
+    path: PathBuf,
+    info: Result<FileInfo, String>,
+    size: u64,
 }
 
 impl App {
@@ -233,6 +250,7 @@ impl App {
             selected: BTreeSet::new(),
             rate_input: "48000".into(),
             dir_input: "./resampled".into(),
+            keep_metadata: true,
             input_focus: 0,
             input_error: None,
             rate_list_state: ListState::default(),
@@ -248,6 +266,11 @@ impl App {
             progress_start: None,
             progress_outcome: None,
             progress_rx: None,
+            viewer: None,
+            view_rx: None,
+            view_start: None,
+            spectro_cache: HashMap::new(),
+            info_pane: None,
         }
     }
 
@@ -282,6 +305,11 @@ impl App {
             KeyCode::Char('u') => self.browser.go_up(),
             KeyCode::Char('a') => self.select_all_in_dir(),
             KeyCode::Char('c') => self.selected.clear(),
+            KeyCode::Char('v') | KeyCode::Char('i') => {
+                if let Some(Entry::Audio(_, path)) = self.browser.selected() {
+                    self.open_viewer(path.clone());
+                }
+            }
             KeyCode::Char('p') if !self.selected.is_empty() => {
                 self.input_error = None;
                 self.mode = Mode::Input;
@@ -292,14 +320,74 @@ impl App {
         Action::Continue
     }
 
+    /// Open the full-screen info + spectrogram view for `path`.
+    fn open_viewer(&mut self, path: PathBuf) {
+        let info = probe_audio(&path).map_err(|e| e.to_string());
+        let tags = read_tags(&path);
+        self.viewer = Some(Viewer::new(path.clone(), info, tags));
+        self.view_start = Some(Instant::now());
+        self.mode = Mode::View;
+
+        if self.spectro_cache.contains_key(&path) {
+            self.view_rx = None;
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.view_rx = Some(rx);
+        std::thread::spawn(move || {
+            // ponytail: full decode then STFT; streaming decode if huge files stall the cache.
+            let result = read_audio(&path)
+                .map(|buffer| Spectrogram::compute(&buffer))
+                .map_err(|e| e.to_string());
+            let _ = tx.send((path, result));
+        });
+    }
+
+    fn close_viewer(&mut self) {
+        self.viewer = None;
+        self.view_rx = None;
+        self.mode = Mode::Browse;
+    }
+
+    fn drain_view(&mut self) {
+        let msg = self.view_rx.as_ref().and_then(|rx| rx.try_recv().ok());
+        if let Some((path, result)) = msg {
+            self.spectro_cache.insert(path, result);
+            self.view_rx = None;
+        }
+    }
+
+    /// Re-probe the side pane when the browser cursor moved.
+    fn refresh_info_pane(&mut self) {
+        let selected = match self.browser.selected() {
+            Some(Entry::Audio(_, path)) => Some(path.clone()),
+            _ => None,
+        };
+        let unchanged = match (&selected, &self.info_pane) {
+            (Some(p), pane) => pane.as_ref().is_some_and(|i| &i.path == p),
+            (None, None) => true,
+            _ => false,
+        };
+        if unchanged {
+            return;
+        }
+        self.info_pane = selected.map(|path| {
+            let info = probe_audio(&path).map_err(|e| e.to_string());
+            let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            InfoPane { path, info, size }
+        });
+    }
+
     fn handle_input(&mut self, code: KeyCode) -> Action {
         match code {
-            KeyCode::Tab | KeyCode::Down => self.input_focus = (self.input_focus + 1) % 3,
-            KeyCode::Up => self.input_focus = (self.input_focus + 2) % 3,
+            KeyCode::Tab | KeyCode::Down => self.input_focus = (self.input_focus + 1) % 4,
+            KeyCode::Up => self.input_focus = (self.input_focus + 3) % 4,
+            KeyCode::Char('m') => self.keep_metadata = !self.keep_metadata,
             KeyCode::Esc => self.mode = Mode::Browse,
             KeyCode::Enter => match self.input_focus {
                 0 => self.open_rate_picker(),
                 1 => self.open_dir_picker(),
+                2 => self.keep_metadata = !self.keep_metadata,
                 _ => self.confirm(),
             },
             _ => {}
@@ -457,6 +545,7 @@ impl App {
         self.mode = Mode::Progress;
 
         // ponytail: bg thread, per-phase progress on huge files. No mid-file cancel — AtomicBool if needed.
+        let keep_metadata = self.keep_metadata;
         std::thread::spawn(move || {
             let _ = std::fs::create_dir_all(&output_dir);
             let total = inputs.len();
@@ -499,7 +588,12 @@ impl App {
                     phase: Phase::Write,
                     path: out.clone(),
                 });
-                match write_wav(&out, &result) {
+                let write_result = if keep_metadata {
+                    write_wav_with_tags(&out, &result, &read_tags(input))
+                } else {
+                    write_wav(&out, &result)
+                };
+                match write_result {
                     Ok(()) => ok += 1,
                     Err(e) => failed.push((input.clone(), e.to_string())),
                 }
@@ -549,7 +643,7 @@ enum Action {
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-fn spinner(elapsed: Duration) -> &'static str {
+pub(crate) fn spinner(elapsed: Duration) -> &'static str {
     SPINNER[(elapsed.as_millis() / 80) as usize % SPINNER.len()]
 }
 
@@ -576,8 +670,11 @@ fn run_app(terminal: &mut Tui, start_dir: PathBuf) -> Result<(), String> {
             .draw(|frame| app.draw(frame))
             .map_err(|e| e.to_string())?;
 
-        if app.mode == Mode::Progress {
-            app.drain_progress();
+        match app.mode {
+            Mode::Progress => app.drain_progress(),
+            Mode::View => app.drain_view(),
+            Mode::Browse => app.refresh_info_pane(),
+            _ => {}
         }
 
         if event::poll(Duration::from_millis(50)).map_err(|e| e.to_string())? {
@@ -592,6 +689,27 @@ fn run_app(terminal: &mut Tui, start_dir: PathBuf) -> Result<(), String> {
                     Mode::PickDir => app.handle_pick_dir(key.code),
                     Mode::Progress => Action::Continue,
                     Mode::Done => Action::Quit,
+                    Mode::View => {
+                        // Column count is all key handling needs from the
+                        // spectrogram; passing it avoids disjoint-borrow noise.
+                        let cols = app
+                            .viewer
+                            .as_ref()
+                            .map(|v| v.path.clone())
+                            .and_then(|p| app.spectro_cache.get(&p))
+                            .and_then(|r| r.as_ref().ok())
+                            .map(|s| s.columns().max(1));
+                        match app.viewer.as_mut() {
+                            Some(viewer) => match viewer.handle_key(key.code, cols) {
+                                crate::viewer::ViewAction::Back => {
+                                    app.close_viewer();
+                                    Action::Continue
+                                }
+                                crate::viewer::ViewAction::Continue => Action::Continue,
+                            },
+                            None => Action::Quit,
+                        }
+                    }
                 };
                 if matches!(action, Action::Quit) {
                     return Ok(());
@@ -602,7 +720,7 @@ fn run_app(terminal: &mut Tui, start_dir: PathBuf) -> Result<(), String> {
 }
 
 impl App {
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -635,24 +753,31 @@ impl App {
             Mode::PickDir => self.draw_pick_dir(frame, chunks[1]),
             Mode::Progress => self.draw_progress(frame, chunks[1]),
             Mode::Done => self.draw_done(frame, chunks[1]),
+            Mode::View => self.draw_view(frame, chunks[1]),
         }
     }
 
     fn footer(&self) -> String {
         match self.mode {
             Mode::Browse => {
-                "↑/↓ move  Enter open/toggle  Space toggle  u up  a all  c clear  p process  q quit"
+                "↑/↓ move  Enter open/toggle  Space toggle  u up  a all  c clear  v/i view file  p process  q quit"
             }
-            Mode::Input => "Tab/↑↓ move  Enter change  Esc back",
+            Mode::Input => "Tab/↑↓ move  Enter change  m toggle metadata  Esc back",
             Mode::PickRate => "↑/↓ choose  Enter select  Esc back",
             Mode::PickDir => "↑/↓ move  Enter/→ open  ←/u up  m/Space use  Esc cancel",
             Mode::Progress => "resampling...",
             Mode::Done => "press any key to exit",
+            Mode::View => "←/→/h/l scroll  +/- zoom  0 fit  Esc back",
         }
         .into()
     }
 
-    fn draw_browser(&self, frame: &mut Frame, area: Rect) {
+    fn draw_browser(&mut self, frame: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+            .split(area);
+
         let items: Vec<ListItem> = self
             .browser
             .entries
@@ -681,7 +806,58 @@ impl App {
             .highlight_symbol("▶ ");
 
         let mut state = self.browser.state.clone();
-        frame.render_stateful_widget(list, area, &mut state);
+        frame.render_stateful_widget(list, chunks[0], &mut state);
+        self.draw_info_pane(frame, chunks[1]);
+    }
+
+    /// Live header probe of the file under the browser cursor.
+    fn draw_info_pane(&self, frame: &mut Frame, area: Rect) {
+        let mut lines: Vec<Line> = Vec::new();
+        match &self.info_pane {
+            None => lines.push(Line::from(" no file under cursor")),
+            Some(pane) => {
+                match &pane.info {
+                    Ok(info) => {
+                        let duration = info
+                            .frames
+                            .map(|f| fmt_duration(f as f64 / info.sample_rate as f64))
+                            .unwrap_or_else(|| "unknown".into());
+                        lines.push(Line::from(format!(" format …… {}", info.format)));
+                        lines.push(Line::from(format!(" rate …… {} Hz", info.sample_rate)));
+                        lines.push(Line::from(format!(" channels  {}", info.channels)));
+                        lines.push(Line::from(format!(
+                            " depth …… {} bit",
+                            info.bits_per_sample
+                        )));
+                        lines.push(Line::from(format!(" length … {duration}")));
+                    }
+                    Err(error) => lines.push(
+                        Line::from(format!(" {error}")).style(Style::default().fg(Color::Red)),
+                    ),
+                }
+                lines.push(Line::from(format!(" size …… {}", fmt_size(pane.size))));
+            }
+        }
+        lines.push(Line::from(""));
+        lines
+            .push(Line::from(" v/i: view spectrogram").style(Style::default().fg(Color::DarkGray)));
+
+        frame.render_widget(
+            Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Info ")),
+            area,
+        );
+    }
+
+    fn draw_view(&mut self, frame: &mut Frame, area: Rect) {
+        let Some(viewer) = self.viewer.as_mut() else {
+            return;
+        };
+        let cached = self.spectro_cache.get(&viewer.path);
+        let spectro = cached.and_then(|r| r.as_ref().ok());
+        let error = cached.and_then(|r| r.as_ref().err());
+        let loading = self.view_rx.is_some();
+        let elapsed = self.view_start.map(|t| t.elapsed()).unwrap_or_default();
+        viewer.draw(frame, area, spectro, error, loading, elapsed);
     }
 
     fn draw_input(&self, frame: &mut Frame, area: Rect) {
@@ -716,14 +892,27 @@ impl App {
             }),
         );
         lines.push(Line::from(""));
+        lines.push(
+            Line::from(format!(
+                " {} Keep metadata …… {}",
+                marker(self.input_focus == 2),
+                if self.keep_metadata { "on" } else { "off" }
+            ))
+            .style(if self.input_focus == 2 {
+                focus_style
+            } else {
+                Style::default()
+            }),
+        );
         lines.push(Line::from(""));
-        let start = if self.input_focus == 2 {
+        lines.push(Line::from(""));
+        let start = if self.input_focus == 3 {
             "▶  Start resampling  ◀"
         } else {
             "   Start resampling   "
         };
         lines.push(
-            Line::from(format!("        {start}")).style(if self.input_focus == 2 {
+            Line::from(format!("        {start}")).style(if self.input_focus == 3 {
                 focus_style
             } else {
                 Style::default()

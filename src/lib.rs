@@ -24,6 +24,7 @@ pub mod io;
 pub mod polyphase;
 pub mod resampler;
 pub mod sinc;
+pub mod tags;
 pub mod utils;
 pub mod window;
 
