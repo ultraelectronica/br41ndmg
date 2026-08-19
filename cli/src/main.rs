@@ -1,5 +1,7 @@
 mod resample_job;
+mod spectrogram;
 mod tui;
+mod viewer;
 
 use resample_job::{resolve_output, run_batch, run_single};
 use std::path::{Path, PathBuf};
