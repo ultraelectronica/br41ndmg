@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2026-08-19
 
 ### Added
 - Tag preservation: `br41ndmg::tags` reads common tags from FLAC (Vorbis
