@@ -23,6 +23,7 @@ A Rust audio resampling library with a polyphase sinc engine, offline and stream
 - FLAC input: 4–32-bit samples (default `flac` feature, pure-Rust decoder)
 - WAV output: 32-bit float
 - Tag preservation: common FLAC/Vorbis comments and WAV LIST/INFO tags are carried across to output WAVs
+- Header probing (`probe_audio`) and, in the TUI, a file info pane plus a scrollable/zoomable spectrogram view (`v`/`i`)
 - SSE2 stereo fast path on `x86` and `x86_64`
 - Streaming output is bit-exact with the offline path regardless of input chunking
 - DSP validation tests for impulse, sine, sweep, DC, and alias-suppression regressions

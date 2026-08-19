@@ -110,6 +110,18 @@ write_wav("song_48k.wav", &output)?;
   `flac` feature). Integer samples are normalized to `[-1.0, 1.0]`.
 - **Output**: 32-bit float WAV. Samples are clamped to `[-1.0, 1.0]` on write.
 - For explicit decoders use [`read_wav`](../src/io.rs) / [`read_flac`](../src/io.rs).
+- To inspect a header without decoding samples, use
+  [`probe_audio`](../src/io.rs): it returns the format, sample rate, channel
+  count, bit depth, and frame count (when stated) from the WAV fmt chunk or
+  FLAC streaminfo.
+
+```rust
+use br41ndmg::io::probe_audio;
+
+let info = probe_audio("song.flac")?;
+println!("{} Hz, {} ch, {} bit", info.sample_rate, info.channels, info.bits_per_sample);
+# Ok::<(), br41ndmg::ResampleError>(())
+```
 
 `AudioBuffer::resample_to` is a convenience wrapper that builds a `Resampler`
 internally. Construct your own `Resampler` if you want to reuse it across many
@@ -142,6 +154,13 @@ In the browser:
 - `Enter` opens a directory or toggles a file's selection; `Space` toggles.
 - `u` goes up one directory level.
 - `a` selects every audio file in the current directory; `c` clears.
+- A live **info pane** beside the list shows the header details (format, rate,
+  channels, bit depth, duration, size) of the file under the cursor.
+- `v`/`i` opens the full-screen **file view**: header info, tags, and a
+  spectrogram (Hann-windowed STFT, dB-scaled heat map). Scroll with
+  `←`/`→`/`h`/`l`, zoom with `+`/`-`, fit the whole file with `0`, return
+  with `Esc`. The spectrogram is computed on a background thread and cached,
+  so reopening a file is instant.
 - `p` proceeds to the settings screen (enabled once at least one file is
   selected). There you choose a **target sample rate** (a list of common
   presets, or "Custom…" to type your own) and an **output directory** (type it

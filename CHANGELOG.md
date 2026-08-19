@@ -7,6 +7,12 @@
   comments) and WAV (LIST/INFO) inputs and writes them into the output WAV as a
   LIST/INFO chunk. The CLI and TUI keep tags by default; pass `--no-metadata`
   (or press `m` in the browser settings screen) to strip them.
+- File info and spectrogram viewer: `br41ndmg::io::probe_audio` reads
+  WAV/FLAC headers (rate, channels, bit depth, frame count) without decoding
+  samples. The TUI shows a live info pane beside the file browser and opens a
+  full-screen info + spectrogram view with `v`/`i` (Hann-windowed STFT with
+  labeled time and frequency axes, scroll with arrows, zoom with `+`/`-`,
+  `0` to fit).
 
 ## [0.2.1] - 2026-08-18
 
