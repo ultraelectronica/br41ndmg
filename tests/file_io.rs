@@ -1,5 +1,5 @@
 use br41ndmg::Resampler;
-use br41ndmg::io::{AudioBuffer, read_wav, write_wav};
+use br41ndmg::io::{AudioBuffer, probe_audio, read_wav, write_wav};
 use hound::{SampleFormat, WavSpec, WavWriter};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -82,4 +82,48 @@ fn audio_buffer_resample_to_preserves_stereo_layout() {
         assert!((output.samples()[frame * 2] - left[frame]).abs() <= 1.0e-5);
         assert!((output.samples()[frame * 2 + 1] - right[frame]).abs() <= 1.0e-5);
     }
+}
+
+#[test]
+fn probe_wav_reports_header_without_decoding() {
+    let path = temp_path("probe_wav");
+    let spec = WavSpec {
+        channels: 2,
+        sample_rate: 48_000,
+        bits_per_sample: 16,
+        sample_format: SampleFormat::Int,
+    };
+    {
+        let mut writer = WavWriter::create(&path, spec).unwrap();
+        for _ in 0..100 {
+            writer.write_sample(0_i16).unwrap();
+            writer.write_sample(0_i16).unwrap();
+        }
+        writer.finalize().unwrap();
+    }
+
+    let info = probe_audio(&path).unwrap();
+    std::fs::remove_file(&path).unwrap();
+
+    assert_eq!(info.format, "wav");
+    assert_eq!(info.sample_rate, 48_000);
+    assert_eq!(info.channels, 2);
+    assert_eq!(info.bits_per_sample, 16);
+    assert_eq!(info.frames, Some(100));
+}
+
+#[test]
+fn probe_flac_reports_streaminfo() {
+    let path = PathBuf::from("test_subjects/Hitsujibungaku - more than words.flac");
+    if !path.exists() {
+        return; // fixtures are optional; probe is covered by the WAV test
+    }
+
+    let info = probe_audio(&path).unwrap();
+
+    assert_eq!(info.format, "flac");
+    assert!(info.sample_rate > 0);
+    assert!(info.channels > 0);
+    assert!(info.bits_per_sample > 0);
+    assert!(info.frames.is_some_and(|frames| frames > 0));
 }
